@@ -1,0 +1,1 @@
+export default function shallowequal(a: any, b: any): boolean;

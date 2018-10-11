@@ -1,0 +1,897 @@
+(function (global, factory) {
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
+    typeof define === 'function' && define.amd ? define(['exports'], factory) :
+    (factory((global.React = {})));
+}(this, (function (exports) { 'use strict';
+
+    /*! *****************************************************************************
+    Copyright (c) Microsoft Corporation. All rights reserved.
+    Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+    this file except in compliance with the License. You may obtain a copy of the
+    License at http://www.apache.org/licenses/LICENSE-2.0
+
+    THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
+    WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
+    MERCHANTABLITY OR NON-INFRINGEMENT.
+
+    See the Apache Version 2.0 License for specific language governing permissions
+    and limitations under the License.
+    ***************************************************************************** */
+    /* global Reflect, Promise */
+
+    var extendStatics = function(d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+
+    function __extends(d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    }
+
+    var ReactElement = /** @class */ (function () {
+        function ReactElement(tagName, props) {
+            var children = [];
+            for (var _i = 2; _i < arguments.length; _i++) {
+                children[_i - 2] = arguments[_i];
+            }
+            this.tagName = tagName;
+            this.props = {};
+            this.children = children;
+            var arrChildren = [];
+            if (Array.isArray(this.children)) {
+                for (var i = 0, len = this.children.length; i < len; i++) {
+                    var child = this.children[i];
+                    if (typeof child === "number") {
+                        this.children[i] = child + '';
+                    }
+                    if (Array.isArray(child)) {
+                        arrChildren = arrChildren.concat(child);
+                    }
+                    else {
+                        arrChildren.push(child);
+                    }
+                }
+            }
+            Object.assign(this.props, props);
+            this.children = arrChildren;
+            if (arrChildren.length > 0) {
+                Object.assign(this.props, {
+                    children: arrChildren
+                });
+            }
+            if (props) {
+                if (props.key) {
+                    this.key = props.key + "";
+                }
+                if (typeof props.ref === "function") {
+                    this.ref = props.ref;
+                }
+            }
+        }
+        return ReactElement;
+    }());
+    function isReactElement(ele) {
+        return typeof ele !== "string";
+    }
+
+    /**
+     * Diff two list in O(N).
+     * @param {Array} oldList - Original List
+     * @param {Array} newList - List After certain insertions, removes, or moves
+     * @return {Object} - {moves: <Array>}
+     *                  - moves is a list of actions that telling how to remove and insert
+     */
+    function diff (oldList, newList, key) {
+        var oldMap = makeKeyIndexAndFree(oldList, key);
+        var newMap = makeKeyIndexAndFree(newList, key);
+      
+        var newFree = newMap.free;
+      
+        var oldKeyIndex = oldMap.keyIndex;
+        var newKeyIndex = newMap.keyIndex;
+      
+        var moves = [];
+      
+        // a simulate list to manipulate
+        var children = [];
+        var i = 0;
+        var item;
+        var itemKey;
+        var freeIndex = 0;
+      
+        // fist pass to check item in old list: if it's removed or not
+        while (i < oldList.length) {
+          item = oldList[i];
+          itemKey = getItemKey(item, key);
+          if (itemKey) {
+            if (!newKeyIndex.hasOwnProperty(itemKey)) {
+              children.push(null);
+            } else {
+              var newItemIndex = newKeyIndex[itemKey];
+              children.push(newList[newItemIndex]);
+            }
+          } else {
+            var freeItem = newFree[freeIndex++];
+            children.push(freeItem || null);
+          }
+          i++;
+        }
+      
+        var simulateList = children.slice(0);
+      
+        // remove items no longer exist
+        i = 0;
+        while (i < simulateList.length) {
+          if (simulateList[i] === null) {
+            remove(i);
+            removeSimulate(i);
+          } else {
+            i++;
+          }
+        }
+      
+        // i is cursor pointing to a item in new list
+        // j is cursor pointing to a item in simulateList
+        var j = i = 0;
+        while (i < newList.length) {
+          item = newList[i];
+          itemKey = getItemKey(item, key);
+      
+          var simulateItem = simulateList[j];
+          var simulateItemKey = getItemKey(simulateItem, key);
+      
+          if (simulateItem) {
+            if (itemKey === simulateItemKey) {
+              j++;
+            } else {
+              // new item, just inesrt it
+              if (!oldKeyIndex.hasOwnProperty(itemKey)) {
+                insert(i, item);
+              } else {
+                // if remove current simulateItem make item in right place
+                // then just remove it
+                var nextItemKey = getItemKey(simulateList[j + 1], key);
+                if (nextItemKey === itemKey) {
+                  remove(i);
+                  removeSimulate(j);
+                  j++; // after removing, current j is right, just jump to next one
+                } else {
+                  // else insert item
+                  insert(i, item);
+                }
+              }
+            }
+          } else {
+            insert(i, item);
+          }
+      
+          i++;
+        }
+      
+        function remove (index) {
+          var move = {index: index, type: 0};
+          moves.push(move);
+        }
+      
+        function insert (index, item) {
+          var move = {index: index, item: item, type: 1};
+          moves.push(move);
+        }
+      
+        function removeSimulate (index) {
+          simulateList.splice(index, 1);
+        }
+      
+        return {
+          moves: moves,
+          children: children
+        }
+      }
+      
+      /**
+       * Convert list to key-item keyIndex object.
+       * @param {Array} list
+       * @param {String|Function} key
+       */
+      function makeKeyIndexAndFree (list, key) {
+        var keyIndex = {};
+        var free = [];
+        for (var i = 0, len = list.length; i < len; i++) {
+          var item = list[i];
+          var itemKey = getItemKey(item, key);
+          if (itemKey) {
+            keyIndex[itemKey] = i;
+          } else {
+            free.push(item);
+          }
+        }
+        return {
+          keyIndex: keyIndex,
+          free: free
+        }
+      }
+      
+      function getItemKey (item, key) {
+        if (!item || !key) return void 666
+        return typeof key === 'string'
+          ? item[key]
+          : key(item)
+      }
+
+    // var diff = require("list-diff2");
+    var ChangeType;
+    (function (ChangeType) {
+        ChangeType[ChangeType["REPLACE"] = 0] = "REPLACE";
+        ChangeType[ChangeType["REORDER"] = 1] = "REORDER";
+        ChangeType[ChangeType["PROPS"] = 2] = "PROPS";
+        ChangeType[ChangeType["TEXT"] = 3] = "TEXT";
+    })(ChangeType || (ChangeType = {}));
+    var MoveType;
+    (function (MoveType) {
+        MoveType[MoveType["REMOVE"] = 0] = "REMOVE";
+        MoveType[MoveType["INSERT"] = 1] = "INSERT";
+    })(MoveType || (MoveType = {}));
+    /*
+    interface IdiffPatch {
+        [index: number]: Array<IChange>;
+    }
+
+    function isStringNode(node: ReactNode): node is string {
+        return typeof(node) === "string";
+    }
+    */
+    function diffProps(oldNode, newNode) {
+        var count = 0;
+        var oldProps = oldNode.props;
+        var newProps = newNode.props;
+        var key;
+        var propsPatches = {};
+        // todo 两次for in 循环是否有优化空间
+        for (key in oldProps) {
+            if (key !== "children") {
+                var oldVal = oldProps[key];
+                var newVal = newProps[key];
+                if (oldVal !== newVal) {
+                    count++;
+                    propsPatches[key] = newVal;
+                }
+            }
+        }
+        for (key in newProps) {
+            if (key !== "children") {
+                if (!oldProps.hasOwnProperty(key)) {
+                    count++;
+                    propsPatches[key] = newProps[key];
+                }
+            }
+        }
+        return count === 0 ? null : propsPatches;
+    }
+    function diffChildren(oldChildren, newChildren, currentPatch) {
+        var diffs = diff(oldChildren, newChildren, "key");
+        newChildren = diffs.children;
+        if (Array.isArray(diffs.moves)) {
+            var reorderPatch = {
+                type: ChangeType.REORDER,
+                moves: diffs.moves,
+                children: newChildren,
+            };
+            currentPatch.push(reorderPatch);
+        }
+    }
+    function dfsWalk(oldNode, newNode) {
+        var currentPatch = [];
+        if (!newNode) ;
+        else if ((typeof oldNode === "string" || typeof oldNode === "number") && (typeof newNode === "string" || typeof newNode === "number")) {
+            if (oldNode !== newNode) {
+                var nodeChange = {
+                    type: ChangeType.TEXT,
+                    content: newNode
+                };
+                currentPatch.push(nodeChange);
+            }
+        }
+        else if (isReactElement(oldNode) && isReactElement(newNode)) {
+            if (oldNode.tagName === newNode.tagName) {
+                // 节点未变化
+                // 查看属性变更
+                var propsPatches = diffProps(oldNode, newNode);
+                propsPatches && currentPatch.push({
+                    type: ChangeType.PROPS,
+                    props: propsPatches,
+                });
+                diffChildren(oldNode.children, newNode.children, currentPatch);
+            }
+            else {
+                currentPatch.push({
+                    type: ChangeType.REPLACE,
+                    node: newNode,
+                });
+            }
+        }
+        else {
+            currentPatch.push({
+                type: ChangeType.REPLACE,
+            });
+        }
+        return currentPatch;
+    }
+
+    function isAttachEvent(key) {
+        if (key.substring(0, 2) === "on") {
+            return true;
+        }
+        return false;
+    }
+    function isPropsChildren(key) {
+        return key === "children";
+    }
+    var ReactDOMComponent = /** @class */ (function () {
+        function ReactDOMComponent(ele, container) {
+            this._currentElement = ele;
+            this._container = container;
+        }
+        ReactDOMComponent.prototype.mountComponent = function (replaceIndex, isInsert) {
+            if (this._currentElement instanceof ReactElement) {
+                var props = this._currentElement.props;
+                var tagName = this._currentElement.tagName;
+                var el = document.createElement(tagName);
+                for (var key in props) {
+                    var val = props[key];
+                    if (key === "className") {
+                        el.setAttribute("class", val);
+                    }
+                    else if (isAttachEvent(key)) {
+                        this.attachEvent(el, key, props[key]);
+                    }
+                    else if (isPropsChildren(key)) ;
+                    else {
+                        el.setAttribute(key, val);
+                    }
+                }
+                this._renderElement = el;
+                this.mountIntoDom(replaceIndex, isInsert);
+                if (props && Array.isArray(props.children)) {
+                    this.mountChildComponent(props.children, el);
+                }
+                var ref = this._currentElement.ref;
+                if (ref) {
+                    this._ref = ref;
+                    ref(this._renderElement);
+                }
+            }
+            else if (!!this._currentElement) {
+                var textNode = document.createTextNode(this._currentElement + '');
+                this._renderElement = textNode;
+                this.mountIntoDom(replaceIndex, isInsert);
+            }
+            else {
+                var commentNode = document.createComment("Empty Node");
+                this._renderElement = commentNode;
+                this.mountIntoDom(replaceIndex, isInsert);
+            }
+        };
+        ReactDOMComponent.prototype.mountIntoDom = function (replaceIndex, isInsert) {
+            if (replaceIndex !== undefined) {
+                var replaceNode = this._container.childNodes[replaceIndex];
+                if (isInsert) {
+                    this._container.insertBefore(this._renderElement, replaceNode);
+                }
+                else {
+                    this._container.replaceChild(this._renderElement, replaceNode);
+                }
+            }
+            else {
+                this._container.appendChild(this._renderElement);
+            }
+        };
+        ReactDOMComponent.prototype.mountChildComponent = function (children, container) {
+            var _this = this;
+            children.forEach(function (child, index) {
+                if (Array.isArray(child)) {
+                    _this.mountChildComponent(child, container);
+                }
+                else {
+                    var renderComponent = ReactReconciler.initialComponent(child, container);
+                    if (!_this._renderChildComponent) {
+                        _this._renderChildComponent = [];
+                    }
+                    _this._renderChildComponent.push(renderComponent);
+                    renderComponent.mountComponent();
+                }
+            });
+        };
+        ReactDOMComponent.prototype.receiveComponent = function (nextElement) {
+            this.updateComponent(this._currentElement, nextElement);
+        };
+        ReactDOMComponent.prototype.updateComponent = function (prevElement, nextElement) {
+            var changes = dfsWalk(prevElement, nextElement);
+            if (changes.length > 0) {
+                this.updateDomElement(changes);
+                this._ref && this._ref(this._renderElement);
+            }
+            this._currentElement = nextElement;
+        };
+        ReactDOMComponent.prototype.updateChildComponent = function (children) {
+            var _this = this;
+            children.forEach(function (child, index) {
+                if (Array.isArray(child)) {
+                    _this.updateChildComponent(child);
+                    index = index + child.length;
+                }
+                else if (_this._renderChildComponent && _this._renderChildComponent[index]) {
+                    var prevInstance = _this._renderChildComponent[index];
+                    var prevElement = prevInstance._currentElement;
+                    if (ReactReconciler.shouldUpdateReactComponent(prevElement, child)) {
+                        ReactReconciler.receiveComponent(prevInstance, child);
+                    }
+                    else {
+                        prevInstance.unmountComponent();
+                        var nextContainer = void 0;
+                        if (_this._renderElement instanceof HTMLElement) {
+                            nextContainer = _this._renderElement;
+                        }
+                        else {
+                            nextContainer = _this._container;
+                        }
+                        _this._renderChildComponent[index] = ReactReconciler.initialComponent(child, nextContainer);
+                        _this._renderChildComponent[index].mountComponent(index);
+                    }
+                }
+                else {
+                    if (_this._renderElement instanceof HTMLElement) {
+                        if (child || child === 0) {
+                            _this._renderChildComponent[index] = ReactReconciler.initialComponent(child, _this._renderElement);
+                            _this._renderChildComponent[index].mountComponent();
+                        }
+                    }
+                }
+            });
+        };
+        ReactDOMComponent.prototype.updateDomElement = function (changes) {
+            var _this = this;
+            changes.forEach(function (change, index) {
+                var el = _this._renderElement;
+                switch (change.type) {
+                    case ChangeType.TEXT:
+                        if (el.nodeValue && !!change.content) {
+                            el.nodeValue = change.content + "";
+                        }
+                        break;
+                    case ChangeType.PROPS:
+                        if (el instanceof HTMLElement && !!change.props) {
+                            _this.updateProps(el, change.props);
+                        }
+                        break;
+                    case ChangeType.REPLACE:
+                        _this.replaceNode(change.node);
+                        break;
+                    case ChangeType.REORDER:
+                        if (change.children) {
+                            _this.updateChildComponent(change.children);
+                        }
+                        if (change.moves) {
+                            _this.applyMoves(change.moves);
+                        }
+                        break;
+                }
+            });
+        };
+        ReactDOMComponent.prototype.replaceNode = function (newNode) {
+            if (newNode) {
+                this._currentElement = newNode;
+                var el = document.createElement(newNode.tagName);
+                this.updateProps(el, newNode.props);
+                this._eventListener && this._eventListener.clear();
+                this._container.replaceChild(el, this._renderElement);
+                this._renderElement = el;
+                this._renderChildComponent = [];
+            }
+        };
+        ReactDOMComponent.prototype.applyMoves = function (moves) {
+            var _this = this;
+            moves.forEach(function (move, index) { return _this.reorderNode(move); });
+        };
+        ReactDOMComponent.prototype.reorderNode = function (move) {
+            if (move.type === MoveType.INSERT) {
+                if (move.item) {
+                    var container = void 0;
+                    if (this._renderElement instanceof HTMLElement) {
+                        container = this._renderElement;
+                    }
+                    else {
+                        container = this._container;
+                    }
+                    var renderComponent = ReactReconciler.initialComponent(move.item, container);
+                    this._renderChildComponent.splice(move.index, 0, renderComponent);
+                    renderComponent.mountComponent(move.index, true);
+                }
+            }
+            else {
+                this._renderChildComponent[move.index] && this._renderChildComponent[move.index].unmountComponent();
+                var removeNode = this._renderElement.childNodes[move.index];
+                this._renderElement.removeChild(removeNode);
+            }
+        };
+        ReactDOMComponent.prototype.unmountComponent = function () {
+            if (Array.isArray(this._renderChildComponent)) {
+                this._renderChildComponent.forEach(function (child, index) {
+                    ReactReconciler.unmountComponent(child);
+                });
+            }
+            this._ref && this._ref(null);
+            delete this._container;
+            delete this._renderChildComponent;
+            delete this._renderElement;
+            delete this._eventListener;
+            delete this._currentElement;
+            delete this._ref;
+        };
+        ReactDOMComponent.prototype.updateProps = function (el, props) {
+            for (var key in props) {
+                if (key === "className") {
+                    el.setAttribute("class", props[key]);
+                }
+                else if (isAttachEvent(key)) {
+                    this.attachEvent(el, key, props[key]);
+                }
+                else {
+                    el.setAttribute(key, props[key]);
+                }
+            }
+        };
+        ReactDOMComponent.prototype.attachEvent = function (el, key, val) {
+            var eventName = key.substring(2).toLowerCase();
+            var eventHandle = function (e) {
+                e.stopPropagation ? e.stopPropagation() : e.cancelBubble = true;
+                val(e);
+            };
+            var oldEventListener;
+            if (!this._eventListener) {
+                this._eventListener = new Map();
+            }
+            else if (this._eventListener.has(eventName)) {
+                oldEventListener = this._eventListener.get(eventName) || eventHandle;
+                el.removeEventListener(eventName, oldEventListener);
+            }
+            this._eventListener.set(eventName, eventHandle);
+            el.addEventListener(eventName, eventHandle, false);
+        };
+        return ReactDOMComponent;
+    }());
+
+    var ReactReconciler = {
+        initialComponent: function (element, container) {
+            var internalInst;
+            if (element instanceof ReactElement) {
+                if (typeof element.tagName === "string") {
+                    internalInst = new ReactDOMComponent(element, container);
+                }
+                else {
+                    internalInst = new ReactCompositeComponent(element, container);
+                }
+            }
+            else {
+                internalInst = new ReactDOMComponent(element, container);
+            }
+            return internalInst;
+        },
+        receiveComponent: function (internalInstance, nextElement) {
+            if (nextElement instanceof ReactElement) {
+                if (typeof nextElement.tagName === "string" && internalInstance instanceof ReactDOMComponent) {
+                    internalInstance.receiveComponent(nextElement);
+                }
+                else if (internalInstance instanceof ReactCompositeComponent) {
+                    internalInstance.receiveComponent(nextElement);
+                }
+                else {
+                    throw new Error("element and component are not compatible");
+                }
+            }
+            else if (internalInstance instanceof ReactDOMComponent) {
+                internalInstance.receiveComponent(nextElement);
+            }
+            else {
+                throw new Error("element and component are not compatible");
+            }
+        },
+        shouldUpdateReactComponent: function (prevRenderElement, nextRenderElement) {
+            if (typeof prevRenderElement === "string" || typeof prevRenderElement === "number") {
+                return typeof nextRenderElement === "string" || typeof prevRenderElement === "number";
+            }
+            else if (nextRenderElement instanceof ReactElement && prevRenderElement instanceof ReactElement) {
+                return prevRenderElement.tagName === nextRenderElement.tagName && prevRenderElement.key === nextRenderElement.key;
+            }
+            else {
+                return false;
+            }
+        },
+        unmountComponent: function (internalInstance) {
+            internalInstance.unmountComponent();
+        }
+    };
+
+    function shallowEqual(objA, objB, compare, compareContext) {
+        var ret = compare ? compare.call(compareContext, objA, objB) : void 0;
+      
+        if (ret !== void 0) {
+          return !!ret;
+        }
+      
+        if (objA === objB) {
+          return true;
+        }
+      
+        if (typeof objA !== "object" || !objA || typeof objB !== "object" || !objB) {
+          return false;
+        }
+      
+        var keysA = Object.keys(objA);
+        var keysB = Object.keys(objB);
+      
+        if (keysA.length !== keysB.length) {
+          return false;
+        }
+      
+        var bHasOwnProperty = Object.prototype.hasOwnProperty.bind(objB);
+      
+        // Test for A's keys different from B.
+        for (var idx = 0; idx < keysA.length; idx++) {
+          var key = keysA[idx];
+      
+          if (!bHasOwnProperty(key)) {
+            return false;
+          }
+      
+          var valueA = objA[key];
+          var valueB = objB[key];
+      
+          ret = compare ? compare.call(compareContext, valueA, valueB, key) : void 0;
+      
+          if (ret === false || (ret === void 0 && valueA !== valueB)) {
+            return false;
+          }
+        }
+      
+        return true;
+      }
+
+    var instMapCompositeComponent = new Map();
+    var instMapDom = new Map();
+    var CompositeType;
+    (function (CompositeType) {
+        CompositeType[CompositeType["ReactComponent"] = 0] = "ReactComponent";
+        CompositeType[CompositeType["StateLessComponent"] = 1] = "StateLessComponent";
+        CompositeType[CompositeType["PureComponent"] = 2] = "PureComponent";
+    })(CompositeType || (CompositeType = {}));
+    function transformStateLessToComponent(props) {
+        var component = new ReactComponent(props);
+        component.render = function () {
+            var internalInst = instMapCompositeComponent.get(this);
+            if (internalInst) {
+                var fn = internalInst._currentElement.tagName;
+                if (!isReactComponentClass(fn)) {
+                    return fn(this.props);
+                }
+            }
+            return null;
+        };
+        return component;
+    }
+    var ReactCompositeComponent = /** @class */ (function () {
+        function ReactCompositeComponent(node, container) {
+            this._currentElement = node;
+            this._container = container;
+        }
+        ReactCompositeComponent.prototype.mountComponent = function (replaceIndex, isInsert) {
+            if (replaceIndex !== undefined) {
+                this._replaceIndex = replaceIndex;
+            }
+            this._isInsert = !!isInsert;
+            var TagName = this._currentElement.tagName;
+            var isComponent = isReactComponentClass(TagName);
+            var props = this._currentElement.props;
+            if (isReactComponentClass(TagName)) {
+                this.inst = new TagName(props);
+                this._compositeType = CompositeType.ReactComponent;
+                if (isPureComponentClass(TagName)) {
+                    this._compositeType = CompositeType.PureComponent;
+                }
+                else {
+                    this._compositeType = CompositeType.ReactComponent;
+                }
+            }
+            else {
+                this.inst = transformStateLessToComponent(props);
+                this._compositeType = CompositeType.StateLessComponent;
+            }
+            // this.inst = new TagName(props);
+            instMapCompositeComponent.set(this.inst, this);
+            this._container && instMapDom.set(this.inst, this._container);
+            this.inst.componentWillMount && this.inst.componentWillMount();
+            this.mountChildComponent();
+            this.inst.componentDidMount && this.inst.componentDidMount();
+            if (this._currentElement.ref) {
+                this._ref = this._currentElement.ref;
+                this._ref(this.inst);
+            }
+        };
+        ReactCompositeComponent.prototype.isComponentClass = function (tagName) {
+            return tagName.prototype instanceof ReactComponent;
+        };
+        ReactCompositeComponent.prototype.initialInst = function () {
+        };
+        ReactCompositeComponent.prototype.mountChildComponent = function () {
+            this._renderComponent = ReactReconciler.initialComponent(this.inst.render(), this._container);
+            this._renderComponent.mountComponent(this._replaceIndex, this._isInsert);
+        };
+        ReactCompositeComponent.prototype.updateComponent = function (prevElement, nextElement) {
+            var nextProps = nextElement.props;
+            var prevProps = prevElement.props;
+            var nextState = this._processNewState(prevProps);
+            var shouldUpdate = true;
+            var isRealUpdate = !shallowEqual(nextProps, prevProps) || !shallowEqual(this.inst.state || null, nextState);
+            this.inst.componentWillReceiveProps && this.inst.componentWillReceiveProps(nextProps, {});
+            if (this.inst.shouldComponentUpdate) {
+                shouldUpdate = this.inst.shouldComponentUpdate(nextProps, nextState, {});
+            }
+            if (this._compositeType === CompositeType.PureComponent) {
+                shouldUpdate = isRealUpdate;
+            }
+            if (shouldUpdate) {
+                this._performComponentUpdate(nextElement, nextProps, nextState);
+                if (isRealUpdate && this._ref) {
+                    this._ref(this.inst);
+                }
+            }
+            else {
+                this.inst.props = nextProps;
+                this.inst.state = nextState;
+                this._currentElement = nextElement;
+            }
+        };
+        ReactCompositeComponent.prototype._processNewState = function (prevProps) {
+            var state = this.inst.state;
+            if (this._peddingState && this._peddingState.length > 0) {
+                this._peddingState.forEach(function (changeState, index) {
+                    Object.assign(state, typeof changeState === "function" ? changeState(state, prevProps) : changeState);
+                });
+                this._peddingState = [];
+                return state;
+            }
+            return null;
+        };
+        ReactCompositeComponent.prototype._performComponentUpdate = function (nextElement, nextProps, nextState) {
+            var prevProps;
+            var prevState;
+            var inst = this.inst;
+            var hasDidUpdate = !!inst.componentDidUpdate;
+            if (hasDidUpdate) {
+                prevProps = inst.props;
+                prevState = inst.state;
+            }
+            inst.componentWillUpdate && inst.componentWillUpdate(nextProps, nextState, {});
+            // 更新数据
+            inst.props = nextProps;
+            inst.state = nextState;
+            this._updateRenderComponent();
+            inst.componentDidUpdate && inst.componentDidUpdate(prevProps, prevState, {});
+        };
+        ReactCompositeComponent.prototype._updateRenderComponent = function () {
+            var prevComponentInstance = this._renderComponent;
+            var prevRenderElement = prevComponentInstance._currentElement;
+            var nextRenderElement = this.inst.render();
+            if (ReactReconciler.shouldUpdateReactComponent(prevRenderElement, nextRenderElement)) {
+                ReactReconciler.receiveComponent(prevComponentInstance, nextRenderElement);
+            }
+            else {
+                var container = this._container;
+                this.unmountComponent();
+                this._renderComponent = ReactReconciler.initialComponent(nextRenderElement, container);
+                this._renderComponent.mountComponent();
+            }
+        };
+        ReactCompositeComponent.prototype.receiveComponent = function (nextElement) {
+            if (!nextElement) {
+                nextElement = this._currentElement;
+            }
+            this.updateComponent(this._currentElement, nextElement);
+        };
+        ReactCompositeComponent.prototype.unmountComponent = function () {
+            var inst = this.inst;
+            inst.componentWillUnmount && inst.componentWillUnmount();
+            ReactReconciler.unmountComponent(this._renderComponent);
+            this._ref && this._ref(null);
+            delete this.inst;
+            delete this._renderComponent;
+            // delete this._container;
+            delete this._currentElement;
+            delete this._peddingState;
+            delete this._ref;
+            instMapCompositeComponent.delete(inst);
+        };
+        return ReactCompositeComponent;
+    }());
+
+    var ReactComponent = /** @class */ (function () {
+        function ReactComponent(props) {
+            this.props = props;
+        }
+        ReactComponent.prototype.setState = function (partState, cb) {
+            var internalInstance = instMapCompositeComponent.get(this);
+            if (internalInstance) {
+                internalInstance._peddingState = internalInstance._peddingState || [];
+                internalInstance._peddingState.push(partState);
+                internalInstance.receiveComponent();
+                cb && cb();
+            }
+        };
+        ReactComponent.prototype.forceUpdate = function (cb) {
+            var internalInstance = instMapCompositeComponent.get(this);
+            if (internalInstance) {
+                internalInstance.receiveComponent();
+                cb && cb();
+            }
+        };
+        ReactComponent.isReactComponent = true;
+        return ReactComponent;
+    }());
+    var ReactPureComponent = /** @class */ (function (_super) {
+        __extends(ReactPureComponent, _super);
+        function ReactPureComponent(props) {
+            return _super.call(this, props) || this;
+        }
+        ReactPureComponent.isReactPureComponent = true;
+        return ReactPureComponent;
+    }(ReactComponent));
+    function isReactComponentClass(tagName) {
+        return tagName.isReactComponent;
+    }
+    function isPureComponentClass(tagName) {
+        return tagName.isReactPureComponent;
+    }
+
+    var Component = ReactComponent;
+    var PureComponent = ReactPureComponent;
+    function createElement(tagName, props) {
+        var children = [];
+        for (var _i = 2; _i < arguments.length; _i++) {
+            children[_i - 2] = arguments[_i];
+        }
+        return new (ReactElement.bind.apply(ReactElement, [void 0, tagName, props].concat(children)))();
+    }
+    var React = {
+        createElement: createElement,
+        Component: ReactComponent,
+        PureComponent: ReactPureComponent,
+    };
+
+    /*
+    组件渲染核心流程
+    1. 记录组建对应的virtual-dom(组建render时记录)
+    2. 记录virtual-dom对应的真实dom(渲染完组建后的第一次renderHTMLElement)
+    */
+    function render(ele, container) {
+        if (container) {
+            ReactReconciler.initialComponent(ele, container).mountComponent();
+        }
+        else {
+            var error = new Error("container is not exist");
+            throw error;
+        }
+    }
+
+    exports.render = render;
+    exports.Component = Component;
+    exports.PureComponent = PureComponent;
+    exports.createElement = createElement;
+    exports.default = React;
+
+    Object.defineProperty(exports, '__esModule', { value: true });
+
+})));

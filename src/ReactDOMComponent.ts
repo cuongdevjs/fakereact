@@ -1,0 +1,274 @@
+import ReactElement, { ReactNode, ReactDomElement } from "./ReactElement"
+import ReactReconciler, {ReactRenderComponent} from "./ReactReconciler"
+import { dfsWalk, ChangeType, IChange, IMove, MoveType } from "./DomDiff"
+
+function isAttachEvent(key: string): Boolean {
+    if (key.substring(0,2) === "on") {
+        return true;
+    }
+    return false;
+}
+
+function isPropsChildren(key: string): Boolean {
+    return key === "children";
+}
+
+class ReactDOMComponent {
+    _currentElement: ReactDomElement;
+    _container: HTMLElement;
+    _renderElement: Node;
+    _renderChildComponent: ReactRenderComponent[];
+    _eventListener: Map<string, (evt: Event) => void>;
+    _ref: (e: Node | null) => void;
+    _context: any;
+
+    constructor(ele: ReactDomElement, container: HTMLElement) {
+        this._currentElement = ele;
+        this._container = container;
+    }
+    
+
+    mountComponent(context?: any, replaceElement?: Node, isInsert?: boolean) {
+        this._context = context;
+        if (this._currentElement instanceof ReactElement) {
+            let props: any = this._currentElement.props;
+            let tagName: string = this._currentElement.tagName;
+            let el: HTMLElement = document.createElement(tagName);
+            for (let key in props) {
+                let val = props[key];
+                if (key === "className") {
+                    el.setAttribute("class", val);
+                } else if (isAttachEvent(key)) {
+                    this.attachEvent(el, key, props[key]);
+                } else if(isPropsChildren(key)) {
+                    //
+                } else {
+                    el.setAttribute(key, val);
+                }
+            }
+
+            this._renderElement = el;
+            this.mountIntoDom(replaceElement, isInsert);
+            if (props && Array.isArray(props.children)) {
+                this.mountChildComponent(props.children, el);
+            }
+
+            let ref = this._currentElement.ref;
+            if (ref) {
+                this._ref = ref;
+                ref(this._renderElement);
+            }
+
+        } else if (!!this._currentElement) {
+            let textNode = document.createTextNode(this._currentElement + '');
+            this._renderElement = textNode;
+            this.mountIntoDom(replaceElement, isInsert);
+        } else {
+            let commentNode: Comment = document.createComment("Empty Node");
+            this._renderElement = commentNode;
+            this.mountIntoDom(replaceElement, isInsert);
+        }
+
+    }
+
+    mountIntoDom(replaceNode?: Node, isInsert?: Boolean) {
+        if (replaceNode !== undefined) {
+            // let replaceNode: Node = this._container.childNodes[replaceIndex];
+            if (isInsert) {
+                this._container.insertBefore(this._renderElement, replaceNode);
+            } else {
+                this._container.replaceChild(this._renderElement, replaceNode);
+            }
+        } else {
+            this._container.appendChild(this._renderElement);
+        }
+    }
+
+    mountChildComponent(children: ReactNode[], container: HTMLElement) {
+        children.forEach((child: ReactNode, index: number) => {
+            if(Array.isArray(child)) {
+                this.mountChildComponent(child, container);
+            } else {
+                let renderComponent: ReactRenderComponent = ReactReconciler.initialComponent(child, container);
+                if (!this._renderChildComponent) {
+                    this._renderChildComponent = [];
+                }
+                this._renderChildComponent.push(renderComponent);
+                renderComponent.mountComponent(this._context);
+            }
+        });
+    }
+
+    receiveComponent(nextElement: ReactDomElement, nextContext?: any) {
+        this._context = nextContext;
+        this.updateComponent(this._currentElement, nextElement);
+    }
+
+    updateComponent(prevElement: ReactDomElement, nextElement: ReactDomElement) {
+        let changes: IChange[] = dfsWalk(prevElement, nextElement);
+        if (changes.length > 0) {
+            this.updateDomElement(changes);
+            this._ref && this._ref(this._renderElement);
+        }
+        this._currentElement = nextElement;
+
+
+
+    }
+
+    updateChildComponent(children: ReactNode[]) {
+        let currentIndex:number = 0;
+        children.forEach((child: ReactNode, index: number) => {
+            if (Array.isArray(child)) {
+                this.updateChildComponent(child);
+                index = index + child.length;
+            } else if (this._renderChildComponent && this._renderChildComponent[index]) {
+                let prevInstance: ReactRenderComponent = this._renderChildComponent[index];
+                let prevElement: ReactNode = prevInstance._currentElement;
+                if (ReactReconciler.shouldUpdateReactComponent(prevElement, child)) {
+                    ReactReconciler.receiveComponent(prevInstance, child, this._context);
+                } else {
+                    prevInstance.unmountComponent();
+                    let nextContainer: HTMLElement;
+
+                    if (this._renderElement instanceof HTMLElement) {
+                        nextContainer = this._renderElement;
+                    } else {
+                        nextContainer = this._container;
+                    }
+                    this._renderChildComponent[index] = ReactReconciler.initialComponent(child, nextContainer);
+                    const hostNode = ReactReconciler.getHostNode(prevInstance);
+                    this._renderChildComponent[index].mountComponent({}, hostNode);
+                }
+            } else {
+                if (this._renderElement instanceof HTMLElement) {
+                    if (child || child === 0) {
+                        this._renderChildComponent[index] = ReactReconciler.initialComponent(child, this._renderElement);
+                        this._renderChildComponent[index].mountComponent(this._context);
+                    }
+                }
+            }
+        })
+    }
+
+    updateDomElement(changes: IChange[]) {
+        changes.forEach((change: IChange, index: number) => {
+            let el: Node = this._renderElement;
+            switch(change.type) {
+                case ChangeType.TEXT:
+                    if ((<Text>el).nodeValue && !!change.content) {
+                        (<Text>el).nodeValue = change.content + "";
+                    }
+                break;
+
+                case ChangeType.PROPS:
+                    if (el instanceof HTMLElement && !!change.props) {
+                        this.updateProps(el, change.props);
+                    }
+                break;
+
+                case ChangeType.REPLACE:
+                    this.replaceNode(change.node);
+                break;
+
+                case ChangeType.REORDER:
+                    if (change.children) {
+                        this.updateChildComponent(change.children);
+                    }
+
+                    if (change.moves) {
+                        this.applyMoves(change.moves);
+                    }
+                break;
+                    
+            }
+        })
+    }
+
+    replaceNode(newNode?: ReactElement<string>) {
+
+        if (newNode) {
+            this._currentElement = newNode;
+            let el: HTMLElement = document.createElement(newNode.tagName);
+            this.updateProps(el, newNode.props);
+            this._eventListener && this._eventListener.clear();
+            this._container.replaceChild(el, this._renderElement);
+            this._renderElement = el;
+            this._renderChildComponent = [];
+        } else {
+            //
+        }
+    }
+
+    applyMoves(moves: IMove[]) {
+        moves.forEach((move: IMove, index: number) => this.reorderNode(move));
+    }
+
+    reorderNode(move: IMove) {
+        if (move.type === MoveType.INSERT) {
+            if (move.item) {
+                let container: HTMLElement;
+                if (this._renderElement instanceof HTMLElement) {
+                    container = this._renderElement;
+                } else {
+                    container = this._container;
+                }
+                let renderComponent: ReactRenderComponent = ReactReconciler.initialComponent(move.item, container);
+                this._renderChildComponent.splice(move.index, 0, renderComponent);
+                const hostNode: Node = container.childNodes[move.index];
+                renderComponent.mountComponent(this._context, hostNode, true);
+            }
+        } else {
+            this._renderChildComponent[move.index] && this._renderChildComponent[move.index].unmountComponent();
+            let removeNode: Node = this._renderElement.childNodes[move.index];
+            this._renderElement.removeChild(removeNode);
+        }
+    }
+
+    unmountComponent() {
+        if (Array.isArray(this._renderChildComponent)) {
+            this._renderChildComponent.forEach((child: ReactRenderComponent, index: number) => {
+                ReactReconciler.unmountComponent(child);
+            });
+        }
+        this._ref && this._ref(null);
+        delete this._container;
+        delete this._renderChildComponent;
+        delete this._renderElement;
+        delete this._eventListener;
+        delete this._currentElement;
+        delete this._ref;
+    }
+
+    updateProps(el:HTMLElement, props: any) {
+        for (let key in props) {
+            if (key === "className") {
+                el.setAttribute("class", props[key]);
+            } else if (isAttachEvent(key)) {
+                this.attachEvent(el, key, props[key]);
+            } else {
+                el.setAttribute(key, props[key]);
+            }
+        }
+    }
+
+    attachEvent(el: HTMLElement, key: string, val: Function) {
+        let eventName: string = key.substring(2).toLowerCase();
+        let eventHandle = function(e: Event): void {
+            e.stopPropagation ? e.stopPropagation() : e.cancelBubble = true;
+            val(e);
+        }
+        let oldEventListener: (evt: Event) => void;
+
+        if (!this._eventListener) {
+            this._eventListener = new Map();
+        } else if (this._eventListener.has(eventName)) {
+            oldEventListener = this._eventListener.get(eventName) || eventHandle;
+            el.removeEventListener(eventName, oldEventListener);
+        }
+        this._eventListener.set(eventName, eventHandle);
+        el.addEventListener(eventName, eventHandle, false);
+    }
+}
+
+export default ReactDOMComponent

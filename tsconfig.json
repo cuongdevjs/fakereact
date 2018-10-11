@@ -1,0 +1,27 @@
+{
+    "compilerOptions": {
+        "outDir": "./dist/",
+        "sourceMap": true,
+        "noImplicitAny": true,
+        // 决定编译后生成的模块
+        "module": "es2015",
+        "target": "es5",
+        "jsx": "react",
+        "allowSyntheticDefaultImports": true,
+        "lib": ["es2015", "DOM"],
+        "allowJs": false,
+        "strictNullChecks": true,
+        // 如何查找开发过程中使用的模块
+        "moduleResolution": "node",
+        "noEmitHelpers": false,
+        "importHelpers": true,
+        "noResolve": false,
+        "noEmit": false,
+        "inlineSourceMap": false,
+        "declarationDir": "./type",
+        "declaration": true
+    },
+    "include": [
+        "./src/index.ts",
+    ]
+}

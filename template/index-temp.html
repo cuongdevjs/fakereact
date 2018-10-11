@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    .title_even {
+      color: red;
+    }
+    .title_odd {
+      color: green;
+    }
+  </style>
+  <title><%= htmlWebpackPlugin.options.title %></title>
+  <!-- <script>
+    var html = document.querySelector("html");
+    var width = document.documentElement.clientWidth;
+    html.style.fontSize = width/10 + "px";
+  </script> -->
+</head>
+<body>
+  <div id="root"></div>
+</body>
+</html>

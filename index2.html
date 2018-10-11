@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    .title_even {
+      color: red;
+    }
+    .title_odd {
+      color: green;
+    }
+  </style>
+  <title>test complied react</title>
+  <script src="./umd/index.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+      class App extends React.Component {
+        render() {
+          return React.createElement("h1", null, "hahah");
+        }
+      }
+
+      React.render(React.createElement(App), document.getElementById("root"));
+  </script>
+</body>
+</html>
