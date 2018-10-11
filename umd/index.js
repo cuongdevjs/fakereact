@@ -382,7 +382,7 @@
                     ref(this._renderElement);
                 }
             }
-            else if (!!this._currentElement) {
+            else if (!!this._currentElement || this._currentElement === 0) {
                 var textNode = document.createTextNode(this._currentElement + '');
                 this._renderElement = textNode;
                 this.mountIntoDom(replaceElement, isInsert);
@@ -837,7 +837,6 @@
             else {
                 var container = this._container;
                 var hostNode = ReactReconciler.getHostNode(this._renderComponent);
-                console.log(hostNode);
                 this._renderComponent.unmountComponent();
                 this._renderComponent = ReactReconciler.initialComponent(nextRenderElement, container);
                 this._renderComponent.mountComponent(nextChildContext, hostNode);
@@ -1003,6 +1002,7 @@
     exports.Component = Component;
     exports.PureComponent = PureComponent;
     exports.createElement = createElement;
+    exports.Children = Children;
     exports.default = React;
 
     Object.defineProperty(exports, '__esModule', { value: true });

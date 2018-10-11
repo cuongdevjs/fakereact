@@ -59,7 +59,7 @@ class ReactDOMComponent {
                 ref(this._renderElement);
             }
 
-        } else if (!!this._currentElement) {
+        } else if (!!this._currentElement || this._currentElement === 0) {
             let textNode = document.createTextNode(this._currentElement + '');
             this._renderElement = textNode;
             this.mountIntoDom(replaceElement, isInsert);

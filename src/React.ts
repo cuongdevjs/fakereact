@@ -18,6 +18,7 @@ declare global {
 
 export const Component = ReactComponent;
 export const PureComponent = ReactPureComponent;
+export {Children};
 export type ComponentClass = ComponentClass;
 export function createElement(tagName: tagType, props: any, ...children: childrenType): ReactElement<any> {
     return new ReactElement(tagName, props, ...children);

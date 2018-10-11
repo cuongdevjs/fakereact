@@ -207,7 +207,6 @@ class ReactCompositeComponent {
         } else {
             let container: HTMLElement = this._container;
             const hostNode: Node = ReactReconciler.getHostNode(this._renderComponent);
-            console.log(hostNode);
             this._renderComponent.unmountComponent();
             this._renderComponent = ReactReconciler.initialComponent(nextRenderElement, container);
             this._renderComponent.mountComponent(nextChildContext, hostNode);

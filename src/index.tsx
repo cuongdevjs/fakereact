@@ -3,10 +3,84 @@ import React, {Component, createElement, ComponentClass} from './React'
 import { render } from "./ReactDOM"
 import { HashRouter, Switch, Route, RouteComponentProps } from "react-router-dom"
 import * as PropTypes from "prop-types"
+import { createStore, bindActionCreators } from "redux"
+import { Provider, connect } from "react-redux"
 
 interface Props {
     name: string;
 }
+
+interface IAction {
+    type: string;
+    [key: string]: any;
+}
+
+interface IState {
+    counter: number;
+}
+
+function addCreator(): IAction {
+    return {
+        type: "Add"
+    }
+}
+
+function reducer(state: IState = {counter: 0}, action: IAction) {
+    let currentState = {...state};
+    switch(action.type) {
+        case "Add":
+        currentState.counter += 1;
+        break;
+
+        case "Dec":
+        currentState.counter -= 1;
+        break;
+    }
+
+    return currentState;
+}
+
+let store = createStore(reducer);
+
+store.subscribe(() => {
+    console.log("state", store.getState());
+})
+
+function mapStateToProps(state: IState) {
+    return {
+        num: state.counter
+    }
+}
+
+function mapDispatchToProps(dispatch: any) {
+    return {
+        add: bindActionCreators(addCreator, dispatch),
+    }
+}
+
+
+
+class ReduxApp extends Component <{
+    num: number;
+    add: () => void;
+}, {}> {
+    componentDidMount() {
+        console.log(this.context);
+        console.log(this.props);
+    }
+    render() {
+        const { num, add } = this.props;
+        return (
+            <h1 onClick={() => {
+                console.log("haha");
+                add();
+            }}>{num}</h1>
+        )
+    }
+}
+
+let Kop = connect(mapStateToProps, mapDispatchToProps)(ReduxApp);
+
 
 interface State {
     num: number;
@@ -269,7 +343,9 @@ let Hoc: ComponentClass = withHeader(Demo);
 */
 
 
-render(<App name="Jack" />, document.getElementById("root"));
+render(<Provider store={store}>
+    <Kop/>
+</Provider>, document.getElementById("root"));
 
 
 
