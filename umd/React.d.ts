@@ -1,5 +1,5 @@
 import ReactComponent, { ReactPureComponent, ComponentClass } from "./ReactComponent";
-import ReactElement, { tagType, childrenType } from "./ReactElement";
+import ReactElement, { tagType, childrenType, ReactNode, cloneElement } from "./ReactElement";
 declare global {
     namespace JSX {
         interface Element extends ReactElement<any> {
@@ -14,5 +14,8 @@ declare const React: {
     createElement: typeof createElement;
     Component: typeof ReactComponent;
     PureComponent: typeof ReactPureComponent;
+    Children: import("./ReactChildren").IChildrenType;
+    cloneElement: typeof cloneElement;
+    isValidElement(child: ReactNode): boolean;
 };
 export default React;

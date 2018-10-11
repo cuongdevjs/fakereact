@@ -8,11 +8,12 @@ declare class ReactDOMComponent {
     _renderChildComponent: ReactRenderComponent[];
     _eventListener: Map<string, (evt: Event) => void>;
     _ref: (e: Node | null) => void;
+    _context: any;
     constructor(ele: ReactDomElement, container: HTMLElement);
-    mountComponent(replaceIndex?: number, isInsert?: boolean): void;
-    mountIntoDom(replaceIndex?: number, isInsert?: Boolean): void;
+    mountComponent(context?: any, replaceElement?: Node, isInsert?: boolean): void;
+    mountIntoDom(replaceNode?: Node, isInsert?: Boolean): void;
     mountChildComponent(children: ReactNode[], container: HTMLElement): void;
-    receiveComponent(nextElement: ReactDomElement): void;
+    receiveComponent(nextElement: ReactDomElement, nextContext?: any): void;
     updateComponent(prevElement: ReactDomElement, nextElement: ReactDomElement): void;
     updateChildComponent(children: ReactNode[]): void;
     updateDomElement(changes: IChange[]): void;

@@ -3,7 +3,7 @@ import ReactComponent, { ComponentClass } from "./ReactComponent";
 import { ReactRenderComponent } from "./ReactReconciler";
 export declare let instMapCompositeComponent: Map<ReactComponent, ReactCompositeComponent>;
 interface ReactCompositeComponent {
-    updateComponent<T>(prevElement: T, nextElement: T): void;
+    updateComponent<T>(prevElement: T, nextElement: T, nextContext: any): void;
 }
 declare enum CompositeType {
     ReactComponent = 0,
@@ -16,19 +16,22 @@ declare class ReactCompositeComponent {
     inst: ReactComponent;
     _container: HTMLElement;
     _peddingState: any[];
-    _replaceIndex: number;
+    _replaceNode: Node;
     _isInsert: boolean;
     _compositeType: CompositeType;
     _ref: (e: ReactComponent | null) => void;
+    _context: any;
     constructor(node: ReactElement<ComponentClass>, container: HTMLElement);
-    mountComponent(replaceIndex?: number, isInsert?: boolean): void;
+    mountComponent(context?: any, replaceNode?: Node, isInsert?: boolean): void;
     isComponentClass(tagName: ComponentClass | SFC): tagName is ComponentClass;
     initialInst(): void;
     mountChildComponent(): void;
     _processNewState(prevProps?: any): any;
-    _performComponentUpdate(nextElement: ReactElement<ComponentClass>, nextProps: any, nextState: any): void;
+    _performComponentUpdate(nextElement: ReactElement<ComponentClass>, nextProps: any, nextState: any, nextContext: any): void;
     _updateRenderComponent(): void;
-    receiveComponent(nextElement?: ReactElement<ComponentClass> | ReactElement<SFC>): void;
+    receiveComponent(nextElement?: ReactElement<ComponentClass> | ReactElement<SFC>, nextContext?: any): void;
     unmountComponent(): void;
+    _processContext(context: any): any;
+    _processChildContext(): any;
 }
 export default ReactCompositeComponent;

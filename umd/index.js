@@ -78,6 +78,22 @@
     function isReactElement(ele) {
         return typeof ele !== "string";
     }
+    function cloneElement(element, config) {
+        var children = [];
+        for (var _i = 2; _i < arguments.length; _i++) {
+            children[_i - 2] = arguments[_i];
+        }
+        var props = element.props;
+        var newConfig = Object.assign({}, props);
+        if (config.key) {
+            newConfig.key = config.key + '';
+        }
+        if (typeof config.ref === 'function') {
+            newConfig.ref = config.ref;
+        }
+        Object.assign(newConfig, config);
+        return new (ReactElement.bind.apply(ReactElement, [void 0, element.tagName, newConfig].concat(children)))();
+    }
 
     /**
      * Diff two list in O(N).
@@ -336,7 +352,8 @@
             this._currentElement = ele;
             this._container = container;
         }
-        ReactDOMComponent.prototype.mountComponent = function (replaceIndex, isInsert) {
+        ReactDOMComponent.prototype.mountComponent = function (context, replaceElement, isInsert) {
+            this._context = context;
             if (this._currentElement instanceof ReactElement) {
                 var props = this._currentElement.props;
                 var tagName = this._currentElement.tagName;
@@ -355,7 +372,7 @@
                     }
                 }
                 this._renderElement = el;
-                this.mountIntoDom(replaceIndex, isInsert);
+                this.mountIntoDom(replaceElement, isInsert);
                 if (props && Array.isArray(props.children)) {
                     this.mountChildComponent(props.children, el);
                 }
@@ -368,17 +385,17 @@
             else if (!!this._currentElement) {
                 var textNode = document.createTextNode(this._currentElement + '');
                 this._renderElement = textNode;
-                this.mountIntoDom(replaceIndex, isInsert);
+                this.mountIntoDom(replaceElement, isInsert);
             }
             else {
                 var commentNode = document.createComment("Empty Node");
                 this._renderElement = commentNode;
-                this.mountIntoDom(replaceIndex, isInsert);
+                this.mountIntoDom(replaceElement, isInsert);
             }
         };
-        ReactDOMComponent.prototype.mountIntoDom = function (replaceIndex, isInsert) {
-            if (replaceIndex !== undefined) {
-                var replaceNode = this._container.childNodes[replaceIndex];
+        ReactDOMComponent.prototype.mountIntoDom = function (replaceNode, isInsert) {
+            if (replaceNode !== undefined) {
+                // let replaceNode: Node = this._container.childNodes[replaceIndex];
                 if (isInsert) {
                     this._container.insertBefore(this._renderElement, replaceNode);
                 }
@@ -402,11 +419,12 @@
                         _this._renderChildComponent = [];
                     }
                     _this._renderChildComponent.push(renderComponent);
-                    renderComponent.mountComponent();
+                    renderComponent.mountComponent(_this._context);
                 }
             });
         };
-        ReactDOMComponent.prototype.receiveComponent = function (nextElement) {
+        ReactDOMComponent.prototype.receiveComponent = function (nextElement, nextContext) {
+            this._context = nextContext;
             this.updateComponent(this._currentElement, nextElement);
         };
         ReactDOMComponent.prototype.updateComponent = function (prevElement, nextElement) {
@@ -428,7 +446,7 @@
                     var prevInstance = _this._renderChildComponent[index];
                     var prevElement = prevInstance._currentElement;
                     if (ReactReconciler.shouldUpdateReactComponent(prevElement, child)) {
-                        ReactReconciler.receiveComponent(prevInstance, child);
+                        ReactReconciler.receiveComponent(prevInstance, child, _this._context);
                     }
                     else {
                         prevInstance.unmountComponent();
@@ -440,14 +458,15 @@
                             nextContainer = _this._container;
                         }
                         _this._renderChildComponent[index] = ReactReconciler.initialComponent(child, nextContainer);
-                        _this._renderChildComponent[index].mountComponent(index);
+                        var hostNode = ReactReconciler.getHostNode(prevInstance);
+                        _this._renderChildComponent[index].mountComponent({}, hostNode);
                     }
                 }
                 else {
                     if (_this._renderElement instanceof HTMLElement) {
                         if (child || child === 0) {
                             _this._renderChildComponent[index] = ReactReconciler.initialComponent(child, _this._renderElement);
-                            _this._renderChildComponent[index].mountComponent();
+                            _this._renderChildComponent[index].mountComponent(_this._context);
                         }
                     }
                 }
@@ -509,7 +528,8 @@
                     }
                     var renderComponent = ReactReconciler.initialComponent(move.item, container);
                     this._renderChildComponent.splice(move.index, 0, renderComponent);
-                    renderComponent.mountComponent(move.index, true);
+                    var hostNode = container.childNodes[move.index];
+                    renderComponent.mountComponent(this._context, hostNode, true);
                 }
             }
             else {
@@ -581,20 +601,20 @@
             }
             return internalInst;
         },
-        receiveComponent: function (internalInstance, nextElement) {
+        receiveComponent: function (internalInstance, nextElement, nextContext) {
             if (nextElement instanceof ReactElement) {
                 if (typeof nextElement.tagName === "string" && internalInstance instanceof ReactDOMComponent) {
-                    internalInstance.receiveComponent(nextElement);
+                    internalInstance.receiveComponent(nextElement, nextContext);
                 }
                 else if (internalInstance instanceof ReactCompositeComponent) {
-                    internalInstance.receiveComponent(nextElement);
+                    internalInstance.receiveComponent(nextElement, nextContext);
                 }
                 else {
                     throw new Error("element and component are not compatible");
                 }
             }
             else if (internalInstance instanceof ReactDOMComponent) {
-                internalInstance.receiveComponent(nextElement);
+                internalInstance.receiveComponent(nextElement, nextContext);
             }
             else {
                 throw new Error("element and component are not compatible");
@@ -613,6 +633,12 @@
         },
         unmountComponent: function (internalInstance) {
             internalInstance.unmountComponent();
+        },
+        getHostNode: function (component) {
+            if (component instanceof ReactDOMComponent) {
+                return component._renderElement;
+            }
+            return this.getHostNode(component._renderComponent);
         }
     };
 
@@ -669,8 +695,8 @@
         CompositeType[CompositeType["StateLessComponent"] = 1] = "StateLessComponent";
         CompositeType[CompositeType["PureComponent"] = 2] = "PureComponent";
     })(CompositeType || (CompositeType = {}));
-    function transformStateLessToComponent(props) {
-        var component = new ReactComponent(props);
+    function transformStateLessToComponent(props, context) {
+        var component = new ReactComponent(props, context);
         component.render = function () {
             var internalInst = instMapCompositeComponent.get(this);
             if (internalInst) {
@@ -688,16 +714,18 @@
             this._currentElement = node;
             this._container = container;
         }
-        ReactCompositeComponent.prototype.mountComponent = function (replaceIndex, isInsert) {
-            if (replaceIndex !== undefined) {
-                this._replaceIndex = replaceIndex;
+        ReactCompositeComponent.prototype.mountComponent = function (context, replaceNode, isInsert) {
+            this._context = context;
+            if (replaceNode !== undefined) {
+                this._replaceNode = replaceNode;
             }
             this._isInsert = !!isInsert;
             var TagName = this._currentElement.tagName;
             var isComponent = isReactComponentClass(TagName);
             var props = this._currentElement.props;
+            var _currentContext = this._processContext(context);
             if (isReactComponentClass(TagName)) {
-                this.inst = new TagName(props);
+                this.inst = new TagName(props, _currentContext);
                 this._compositeType = CompositeType.ReactComponent;
                 if (isPureComponentClass(TagName)) {
                     this._compositeType = CompositeType.PureComponent;
@@ -707,7 +735,7 @@
                 }
             }
             else {
-                this.inst = transformStateLessToComponent(props);
+                this.inst = transformStateLessToComponent(props, _currentContext);
                 this._compositeType = CompositeType.StateLessComponent;
             }
             // this.inst = new TagName(props);
@@ -728,23 +756,35 @@
         };
         ReactCompositeComponent.prototype.mountChildComponent = function () {
             this._renderComponent = ReactReconciler.initialComponent(this.inst.render(), this._container);
-            this._renderComponent.mountComponent(this._replaceIndex, this._isInsert);
+            var nextContext = this._processChildContext();
+            this._renderComponent.mountComponent(nextContext, this._replaceNode, this._isInsert);
         };
-        ReactCompositeComponent.prototype.updateComponent = function (prevElement, nextElement) {
+        ReactCompositeComponent.prototype.updateComponent = function (prevElement, nextElement, nextContext) {
             var nextProps = nextElement.props;
             var prevProps = prevElement.props;
             var nextState = this._processNewState(prevProps);
             var shouldUpdate = true;
             var isRealUpdate = !shallowEqual(nextProps, prevProps) || !shallowEqual(this.inst.state || null, nextState);
-            this.inst.componentWillReceiveProps && this.inst.componentWillReceiveProps(nextProps, {});
+            var willReceive = false;
+            // nextContext = this._processContext(nextContext);
+            if (nextContext !== this._context) {
+                nextContext = this._processContext(nextContext);
+                willReceive = true;
+            }
+            if (prevElement !== nextElement) {
+                willReceive = true;
+            }
+            if (this.inst.componentWillReceiveProps && willReceive) {
+                this.inst.componentWillReceiveProps(nextProps, nextContext);
+            }
             if (this.inst.shouldComponentUpdate) {
-                shouldUpdate = this.inst.shouldComponentUpdate(nextProps, nextState, {});
+                shouldUpdate = this.inst.shouldComponentUpdate(nextProps, nextState, nextContext);
             }
             if (this._compositeType === CompositeType.PureComponent) {
                 shouldUpdate = isRealUpdate;
             }
             if (shouldUpdate) {
-                this._performComponentUpdate(nextElement, nextProps, nextState);
+                this._performComponentUpdate(nextElement, nextProps, nextState, nextContext);
                 if (isRealUpdate && this._ref) {
                     this._ref(this.inst);
                 }
@@ -752,11 +792,12 @@
             else {
                 this.inst.props = nextProps;
                 this.inst.state = nextState;
+                this.inst.context = nextContext;
                 this._currentElement = nextElement;
             }
         };
         ReactCompositeComponent.prototype._processNewState = function (prevProps) {
-            var state = this.inst.state;
+            var state = this.inst.state || null;
             if (this._peddingState && this._peddingState.length > 0) {
                 this._peddingState.forEach(function (changeState, index) {
                     Object.assign(state, typeof changeState === "function" ? changeState(state, prevProps) : changeState);
@@ -764,43 +805,52 @@
                 this._peddingState = [];
                 return state;
             }
-            return null;
+            return state;
         };
-        ReactCompositeComponent.prototype._performComponentUpdate = function (nextElement, nextProps, nextState) {
+        ReactCompositeComponent.prototype._performComponentUpdate = function (nextElement, nextProps, nextState, nextContext) {
             var prevProps;
             var prevState;
+            var prevContext;
             var inst = this.inst;
             var hasDidUpdate = !!inst.componentDidUpdate;
             if (hasDidUpdate) {
                 prevProps = inst.props;
                 prevState = inst.state;
+                prevContext = inst.context;
             }
-            inst.componentWillUpdate && inst.componentWillUpdate(nextProps, nextState, {});
+            inst.componentWillUpdate && inst.componentWillUpdate(nextProps, nextState, nextContext);
             // 更新数据
             inst.props = nextProps;
             inst.state = nextState;
+            inst.context = nextContext;
             this._updateRenderComponent();
-            inst.componentDidUpdate && inst.componentDidUpdate(prevProps, prevState, {});
+            inst.componentDidUpdate && inst.componentDidUpdate(prevProps, prevState, prevContext);
         };
         ReactCompositeComponent.prototype._updateRenderComponent = function () {
             var prevComponentInstance = this._renderComponent;
             var prevRenderElement = prevComponentInstance._currentElement;
             var nextRenderElement = this.inst.render();
+            var nextChildContext = this._processChildContext();
             if (ReactReconciler.shouldUpdateReactComponent(prevRenderElement, nextRenderElement)) {
-                ReactReconciler.receiveComponent(prevComponentInstance, nextRenderElement);
+                ReactReconciler.receiveComponent(prevComponentInstance, nextRenderElement, nextChildContext);
             }
             else {
                 var container = this._container;
-                this.unmountComponent();
+                var hostNode = ReactReconciler.getHostNode(this._renderComponent);
+                console.log(hostNode);
+                this._renderComponent.unmountComponent();
                 this._renderComponent = ReactReconciler.initialComponent(nextRenderElement, container);
-                this._renderComponent.mountComponent();
+                this._renderComponent.mountComponent(nextChildContext, hostNode);
             }
         };
-        ReactCompositeComponent.prototype.receiveComponent = function (nextElement) {
+        ReactCompositeComponent.prototype.receiveComponent = function (nextElement, nextContext) {
             if (!nextElement) {
                 nextElement = this._currentElement;
             }
-            this.updateComponent(this._currentElement, nextElement);
+            if (!nextContext) {
+                nextContext = this._context;
+            }
+            this.updateComponent(this._currentElement, nextElement, nextContext);
         };
         ReactCompositeComponent.prototype.unmountComponent = function () {
             var inst = this.inst;
@@ -809,18 +859,53 @@
             this._ref && this._ref(null);
             delete this.inst;
             delete this._renderComponent;
-            // delete this._container;
             delete this._currentElement;
             delete this._peddingState;
             delete this._ref;
             instMapCompositeComponent.delete(inst);
         };
+        // context
+        ReactCompositeComponent.prototype._processContext = function (context) {
+            // handle context from parent
+            var Component = this._currentElement.tagName;
+            var contextType = Component.contextTypes;
+            var _currentContext = {};
+            if (contextType && context) {
+                for (var key in contextType) {
+                    _currentContext[key] = context[key];
+                }
+            }
+            // this._context = _currentContext;
+            return _currentContext;
+        };
+        ReactCompositeComponent.prototype._processChildContext = function () {
+            var Component = this._currentElement.tagName;
+            var inst = this.inst;
+            if (isReactComponentClass(Component) && inst.getChildContext) {
+                if (Component.childContextTypes) {
+                    var childContext = inst.getChildContext();
+                    if (childContext) {
+                        for (var key in childContext) {
+                            if (!Component.childContextTypes[key]) {
+                                throw new Error("Key is not compatiable");
+                            }
+                        }
+                        return Object.assign({}, this._context, childContext);
+                    }
+                }
+                else {
+                    throw new Error("You need specific childContextTypes");
+                }
+            }
+            return this._context;
+        };
         return ReactCompositeComponent;
     }());
 
     var ReactComponent = /** @class */ (function () {
-        function ReactComponent(props) {
+        function ReactComponent(props, context) {
             this.props = props;
+            this.context = context;
         }
         ReactComponent.prototype.setState = function (partState, cb) {
             var internalInstance = instMapCompositeComponent.get(this);
@@ -843,8 +928,8 @@
     }());
     var ReactPureComponent = /** @class */ (function (_super) {
         __extends(ReactPureComponent, _super);
-        function ReactPureComponent(props) {
-            return _super.call(this, props) || this;
+        function ReactPureComponent(props, context) {
+            return _super.call(this, props, context) || this;
         }
         ReactPureComponent.isReactPureComponent = true;
         return ReactPureComponent;
@@ -855,6 +940,29 @@
     function isPureComponentClass(tagName) {
         return tagName.isReactPureComponent;
     }
+
+    var Children = {
+        count: function (children) {
+            return children.length;
+        },
+        only: function (children) {
+            if (children.length === 1) {
+                return children[0];
+            }
+            else {
+                throw new Error("Not the only child");
+            }
+        },
+        forEach: function (children, fn) {
+            return children.forEach(fn);
+        },
+        map: function (children, fn) {
+            return children.map(fn);
+        },
+        toArray: function (children) {
+            return children;
+        }
+    };
 
     var Component = ReactComponent;
     var PureComponent = ReactPureComponent;
@@ -869,6 +977,11 @@
         createElement: createElement,
         Component: ReactComponent,
         PureComponent: ReactPureComponent,
+        Children: Children,
+        cloneElement: cloneElement,
+        isValidElement: function (child) {
+            return child instanceof ReactElement;
+        }
     };
 
     /*
