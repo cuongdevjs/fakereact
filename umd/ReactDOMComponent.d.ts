@@ -22,6 +22,6 @@ declare class ReactDOMComponent {
     reorderNode(move: IMove): void;
     unmountComponent(): void;
     updateProps(el: HTMLElement, props: any): void;
-    attachEvent(el: HTMLElement, key: string, val: Function): void;
+    attachEvent<T>(el: HTMLElement, key: string, val?: Function): void;
 }
 export default ReactDOMComponent;

@@ -43,6 +43,7 @@
             this.props = {};
             this.children = children;
             var arrChildren = [];
+            var allProps = {};
             if (Array.isArray(this.children)) {
                 for (var i = 0, len = this.children.length; i < len; i++) {
                     var child = this.children[i];
@@ -57,24 +58,36 @@
                     }
                 }
             }
-            Object.assign(this.props, props);
+            // Object.assign(this.props, props);
             this.children = arrChildren;
             if (arrChildren.length > 0) {
                 Object.assign(this.props, {
                     children: arrChildren
                 });
             }
-            if (props) {
-                if (props.key) {
-                    this.key = props.key + "";
+            if (isReactComponent(tagName) && tagName.defaultProps) {
+                Object.assign(allProps, tagName.defaultProps, props);
+            }
+            else {
+                Object.assign(allProps, props);
+            }
+            if (allProps) {
+                if (allProps.key) {
+                    this.key = allProps.key + "";
+                    // delete allProps.key;
                 }
-                if (typeof props.ref === "function") {
-                    this.ref = props.ref;
+                if (typeof allProps.ref === "function") {
+                    this.ref = allProps.ref;
+                    // delete allProps.ref;
                 }
             }
+            Object.assign(this.props, allProps);
         }
         return ReactElement;
     }());
+    function isReactComponent(tagName) {
+        return typeof tagName === "function";
+    }
     function isReactElement(ele) {
         return typeof ele !== "string";
     }
@@ -358,19 +371,7 @@
                 var props = this._currentElement.props;
                 var tagName = this._currentElement.tagName;
                 var el = document.createElement(tagName);
-                for (var key in props) {
-                    var val = props[key];
-                    if (key === "className") {
-                        el.setAttribute("class", val);
-                    }
-                    else if (isAttachEvent(key)) {
-                        this.attachEvent(el, key, props[key]);
-                    }
-                    else if (isPropsChildren(key)) ;
-                    else {
-                        el.setAttribute(key, val);
-                    }
-                }
+                this.updateProps(el, props);
                 this._renderElement = el;
                 this.mountIntoDom(replaceElement, isInsert);
                 if (props && Array.isArray(props.children)) {
@@ -554,33 +555,74 @@
         };
         ReactDOMComponent.prototype.updateProps = function (el, props) {
             for (var key in props) {
-                if (key === "className") {
-                    el.setAttribute("class", props[key]);
-                }
-                else if (isAttachEvent(key)) {
-                    this.attachEvent(el, key, props[key]);
-                }
-                else {
-                    el.setAttribute(key, props[key]);
+                if (props[key]) {
+                    if (key === "className") {
+                        el.setAttribute("class", props[key]);
+                    }
+                    else if (isAttachEvent(key)) {
+                        this.attachEvent(el, key, props[key]);
+                    }
+                    else if (key === "ref" || isPropsChildren(key)) ;
+                    else if (key === "value") {
+                        el.setAttribute(key, props[key]);
+                        if (this._currentElement instanceof ReactElement) {
+                            if (this._currentElement.tagName === "input") {
+                                this.attachEvent(el, "onInput");
+                            }
+                        }
+                    }
+                    else {
+                        el.setAttribute(key, props[key]);
+                    }
                 }
             }
         };
         ReactDOMComponent.prototype.attachEvent = function (el, key, val) {
             var eventName = key.substring(2).toLowerCase();
-            var eventHandle = function (e) {
-                e.stopPropagation ? e.stopPropagation() : e.cancelBubble = true;
-                val(e);
-            };
+            var eventHandle;
+            var that = this;
+            if (el instanceof HTMLInputElement && (eventName === "input" || eventName === "change")) {
+                eventName = "input";
+                eventHandle = function (e) {
+                    var value;
+                    val && val(e);
+                    if (that._currentElement instanceof ReactElement) {
+                        value = that._currentElement.props.value;
+                    }
+                    switch (el.type) {
+                        case "text":
+                            el.value = value;
+                            break;
+                        case "checkbox":
+                            el.checked = value;
+                            break;
+                        default:
+                            el.value = value;
+                    }
+                };
+            }
+            else {
+                eventHandle = function (e) {
+                    e.stopPropagation ? e.stopPropagation() : e.cancelBubble = true;
+                    val && val(e);
+                };
+            }
             var oldEventListener;
             if (!this._eventListener) {
                 this._eventListener = new Map();
             }
-            else if (this._eventListener.has(eventName)) {
-                oldEventListener = this._eventListener.get(eventName) || eventHandle;
-                el.removeEventListener(eventName, oldEventListener);
+            if (this._eventListener.has(eventName)) {
+                if (val) {
+                    oldEventListener = this._eventListener.get(eventName) || eventHandle;
+                    el.removeEventListener(eventName, oldEventListener);
+                    this._eventListener.set(eventName, eventHandle);
+                    el.addEventListener(eventName, eventHandle, false);
+                }
             }
-            this._eventListener.set(eventName, eventHandle);
-            el.addEventListener(eventName, eventHandle, false);
+            else {
+                this._eventListener.set(eventName, eventHandle);
+                el.addEventListener(eventName, eventHandle, false);
+            }
         };
         return ReactDOMComponent;
     }());

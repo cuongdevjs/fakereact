@@ -39,6 +39,7 @@ export interface ComponentClass<P = {}, S = {}> {
     displayName?: string;
     contextTypes?: IContextType;
     childContextTypes?: IContextType;
+    defaultProps?: any;
 }
 export declare function isReactComponentClass(tagName: ComponentClass | SFC): tagName is ComponentClass;
 export declare function isPureComponentClass(tagName: ComponentClass): boolean;
