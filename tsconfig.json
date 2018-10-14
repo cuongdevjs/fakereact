@@ -8,7 +8,7 @@
         "target": "es5",
         "jsx": "react",
         "allowSyntheticDefaultImports": true,
-        "lib": ["es2015", "DOM"],
+        "lib": ["es2015", "dom"],
         "allowJs": false,
         "strictNullChecks": true,
         // 如何查找开发过程中使用的模块

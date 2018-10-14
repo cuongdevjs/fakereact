@@ -17,6 +17,12 @@ export function render(ele: ReactElement<any> | string, container: HTMLElement |
        var error: Error = new Error("container is not exist");
        throw error;
    }
-
-
 }
+
+const ReactDOM = {
+    render,
+}
+
+
+
+export default ReactDOM;

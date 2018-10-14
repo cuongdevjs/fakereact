@@ -18,6 +18,15 @@ module.exports = {
                 enforce: "pre",
                 test: /\.js$/,
                 loader: "source-map-loader"
+            },
+            {
+                test: /\.(css|less)$/,
+                use: [
+                    {loader: "style-loader"},
+                    {loader: "css-loader"},
+                    {loader: "postcss-loader"},
+                    {loader: "less-loader", options: {modifyVars: theme}},
+                ]
             }
         ]
     },
@@ -33,7 +42,7 @@ module.exports = {
         extensions: ['.ts', '.tsx', '.js', '.jsx', '.web.js', '.json'],
         alias: {
             "react": path.resolve(__dirname, 'src/React.ts'),
-            // "react-dom": "./src/ReactDOM.ts"
+            "react-dom": path.resolve(__dirname, 'src/ReactDOM.ts')
         }
     }
 }

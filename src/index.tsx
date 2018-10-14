@@ -1,10 +1,11 @@
-
-import React, {Component, createElement, ComponentClass} from './React'
-import { render } from "./ReactDOM"
+import * as React from 'react'
+import { render } from "react-dom"
 import { HashRouter, Switch, Route, RouteComponentProps } from "react-router-dom"
 import * as PropTypes from "prop-types"
 import { createStore, bindActionCreators } from "redux"
 import { Provider, connect } from "react-redux"
+import InputItem from "antd-mobile/es/input-item"
+import "antd-mobile/es/input-item/style/index.css"
 
 interface Props {
     name: string;
@@ -60,21 +61,51 @@ function mapDispatchToProps(dispatch: any) {
 
 
 
-class ReduxApp extends Component <{
+class ReduxApp extends React.Component <{
     num: number;
-    add: () => void;
-}, {}> {
+    add: any;
+}, {
+    text: string;
+}> {
+    constructor(props: {num: number, add: any}) {
+        super(props);
+        this.state = {
+            text: "haha"
+        }
+        this.handleChange = this.handleChange.bind(this);
+        this.handleInput = this.handleInput.bind(this);
+    }
     componentDidMount() {
         console.log(this.context);
         console.log(this.props);
     }
+
+    handleChange(e: any) {
+        console.log("change");
+        console.log(e.target.value);
+        this.setState({
+            text: "haha"
+        });
+    }
+
+    handleInput(e: any) {
+        console.log("input");
+        console.log(e.target.value);
+        // e.target.value = e.target.value;
+        return ""
+
+    }
     render() {
         const { num, add } = this.props;
         return (
-            <h1 onClick={() => {
-                console.log("haha");
-                add();
-            }}>{num}</h1>
+            <div>
+                <input value={"ha"} onChange={this.handleChange} onInput={this.handleInput}/>
+                <input type="checkbox" onChange={this.handleChange} onInput={this.handleInput}/>
+                <h1 onClick={() => {
+                    console.log("haha");
+                    add();
+                }}>{num}</h1>
+            </div>
         )
     }
 }
@@ -90,7 +121,7 @@ interface State {
     };
 }
 
-class Text extends Component {
+class Text extends React.Component {
     componentWillMount() {
         console.log("Text will Mount");
     }
@@ -111,7 +142,7 @@ class Text extends Component {
     }
 }
 
-class Text2 extends Component<{}, {}> {
+class Text2 extends React.Component<{}, {}> {
     static contextTypes = {
         name: PropTypes.string
     }
@@ -342,10 +373,116 @@ class Demo extends Component {
 let Hoc: ComponentClass = withHeader(Demo);
 */
 
+/*
+const modalRoot = document.createElement("div");
+document.body.appendChild(modalRoot);
 
-render(<Provider store={store}>
-    <Kop/>
-</Provider>, document.getElementById("root"));
+
+class Modal extends React.Component {
+    constructor(props: any) {
+        super(props);
+    }
+
+    render() {
+        return createPortal(this.props.children, modalRoot);
+    }
+}
+
+function Child() {
+    return (
+        <div>
+            <button>Click</button>
+        </div>
+    )
+}
+
+
+class Parent extends React.Component<{}, {
+    clicks: number;
+}> {
+    constructor(props: any) {
+        super(props);
+        this.state = {
+            clicks: 0
+        };
+        this.handleClick = this.handleClick.bind(this);
+    }
+
+    handleClick() {
+        this.setState((prevState) => {
+            return {
+                clicks: prevState.clicks + 1,
+            }
+        })
+    }
+
+    render() {
+        return (
+            <div onClick={this.handleClick}>
+                <p>clicks, {this.state.clicks}</p>
+                <Modal><Child/></Modal>
+            </div>
+        )
+    }
+
+
+}
+*/
+interface PPState {
+    person: {
+        name: string;
+    };
+}
+
+class TestPpComponent extends React.Component<{}, PPState> {
+    constructor() {
+        super();
+        this.state = {
+            person: {
+                name: 'Messi'
+            }
+        }
+
+        this.changeName = this.changeName.bind(this);
+        this.handleChange = this.handleChange.bind(this);
+    }
+    
+    changeName() {
+        
+        this.setState((prevState: PPState) => {
+            console.log(prevState);
+            let p = prevState.person;
+            p.name = "Kaka";
+            return {
+                person: p,
+            }
+        })
+    }
+
+    handleChange(e: any) {
+        console.log(e.target.value);
+        let v = e.target.value;
+        let p = this.state.person;
+        p.name = v;
+        this.setState({
+            person: p,
+        });
+    }
+    render() {
+        return (
+            <div>
+                <h1 onClick={this.changeName}>{this.state.person.name}</h1>
+                <input value={this.state.person.name} onChange={this.handleChange}/>
+            </div>
+        )
+    }
+}
+
+
+
+
+
+render(<TestPpComponent />, document.getElementById("root"));
 
 
 

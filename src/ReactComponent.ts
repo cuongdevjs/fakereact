@@ -73,6 +73,7 @@ export interface ComponentClass<P = {}, S = {}> {
     displayName?: string;
     contextTypes?: IContextType;
     childContextTypes?: IContextType;
+    defaultProps?: any;
 }
 
 export function isReactComponentClass(tagName: ComponentClass | SFC): tagName is ComponentClass {

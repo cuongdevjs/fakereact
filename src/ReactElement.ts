@@ -31,6 +31,7 @@ class ReactElement<T extends tagType> {
         this.children = children;
 
         let arrChildren: ReactNode[] = [];
+        let allProps: any = {};
 
         if (Array.isArray(this.children)) {
             for (let i: number = 0, len: number = this.children.length ; i < len; i++) {
@@ -48,7 +49,7 @@ class ReactElement<T extends tagType> {
             }
         }
 
-        Object.assign(this.props, props);
+        // Object.assign(this.props, props);
 
         this.children = arrChildren;
         if (arrChildren.length > 0) {
@@ -56,18 +57,30 @@ class ReactElement<T extends tagType> {
                 children: arrChildren
             });
         }
-        
 
-        if (props) {
-            if (props.key) {
-                this.key = props.key + "";
-            }
-            if (typeof props.ref === "function") {
-                this.ref = props.ref;
-            }
+        if (isReactComponent(tagName) && tagName.defaultProps) {
+            Object.assign(allProps, tagName.defaultProps, props);
+        } else {
+            Object.assign(allProps, props);
         }
 
 
+
+
+        
+
+        if (allProps) {
+            if (allProps.key) {
+                this.key = allProps.key + "";
+                // delete allProps.key;
+            }
+            if (typeof allProps.ref === "function") {
+                this.ref = allProps.ref;
+                // delete allProps.ref;
+            }
+        }
+
+        Object.assign(this.props, allProps);
     }
 }
 

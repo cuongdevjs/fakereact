@@ -34,18 +34,7 @@ class ReactDOMComponent {
             let props: any = this._currentElement.props;
             let tagName: string = this._currentElement.tagName;
             let el: HTMLElement = document.createElement(tagName);
-            for (let key in props) {
-                let val = props[key];
-                if (key === "className") {
-                    el.setAttribute("class", val);
-                } else if (isAttachEvent(key)) {
-                    this.attachEvent(el, key, props[key]);
-                } else if(isPropsChildren(key)) {
-                    //
-                } else {
-                    el.setAttribute(key, val);
-                }
-            }
+            this.updateProps(el, props);
 
             this._renderElement = el;
             this.mountIntoDom(replaceElement, isInsert);
@@ -242,32 +231,79 @@ class ReactDOMComponent {
 
     updateProps(el:HTMLElement, props: any) {
         for (let key in props) {
-            if (key === "className") {
-                el.setAttribute("class", props[key]);
-            } else if (isAttachEvent(key)) {
-                this.attachEvent(el, key, props[key]);
-            } else {
-                el.setAttribute(key, props[key]);
+            if (props[key]) {
+                if (key === "className") {
+                    el.setAttribute("class", props[key]);
+                } else if (isAttachEvent(key)) {
+                    this.attachEvent(el, key, props[key]);
+                } else if (key === "ref" || isPropsChildren(key)) {
+                    
+                } else if (key === "value") {
+                    el.setAttribute(key, props[key]);
+                    if (this._currentElement instanceof ReactElement) {
+                        if (this._currentElement.tagName === "input") {
+                            this.attachEvent(el, "onInput");
+                        }
+                    }
+                } else {
+                    el.setAttribute(key, props[key]);
+                }
             }
         }
     }
 
-    attachEvent(el: HTMLElement, key: string, val: Function) {
+    attachEvent<T>(el: HTMLElement, key: string, val?: Function) {
         let eventName: string = key.substring(2).toLowerCase();
-        let eventHandle = function(e: Event): void {
-            e.stopPropagation ? e.stopPropagation() : e.cancelBubble = true;
-            val(e);
+        let eventHandle: (e: Event) => void;
+        const that = this;
+
+        if (el instanceof HTMLInputElement && (eventName === "input" || eventName === "change")) {
+            eventName = "input";
+            eventHandle = function(e: Event): void {
+                let value: any;
+
+                val && val(e);
+                if (that._currentElement instanceof ReactElement) {
+                    value = that._currentElement.props.value;
+                }
+
+                switch (el.type) {
+                    case "text":
+                        el.value = value;
+                    break;
+
+                    case "checkbox":
+                        el.checked = value;
+                    break;
+
+                    default: 
+                        el.value = value;
+                }
+            }
+        } else {
+            eventHandle = function(e: Event): void {
+                e.stopPropagation ? e.stopPropagation() : e.cancelBubble = true;
+                val && val(e);
+            }
         }
         let oldEventListener: (evt: Event) => void;
 
+
         if (!this._eventListener) {
             this._eventListener = new Map();
-        } else if (this._eventListener.has(eventName)) {
-            oldEventListener = this._eventListener.get(eventName) || eventHandle;
-            el.removeEventListener(eventName, oldEventListener);
         }
-        this._eventListener.set(eventName, eventHandle);
-        el.addEventListener(eventName, eventHandle, false);
+        
+        if (this._eventListener.has(eventName)) {
+            if (val) {
+                oldEventListener = this._eventListener.get(eventName) || eventHandle;
+                el.removeEventListener(eventName, oldEventListener);
+                this._eventListener.set(eventName, eventHandle);
+                el.addEventListener(eventName, eventHandle, false);
+            }
+        } else {
+            this._eventListener.set(eventName, eventHandle);
+            el.addEventListener(eventName, eventHandle, false);
+        }
     }
 }
 
