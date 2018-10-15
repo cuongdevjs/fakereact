@@ -1,11 +1,11 @@
-import ReactElement, { SFC } from "./ReactElement"
+import ReactElement, { SFC, ReactNode } from "./ReactElement"
 import ReactComponent, { ComponentClass, isReactComponentClass, isPureComponentClass} from "./ReactComponent"
 import ReactReconciler, {ReactRenderComponent} from "./ReactReconciler"
 import shallowequal from "./lib/shallowequal"
 import ReactDOMComponent from './ReactDOMComponent';
 
 export let instMapCompositeComponent: Map<ReactComponent, ReactCompositeComponent> = new Map();
-let instMapDom: Map<ReactComponent, HTMLElement> = new Map();
+export let instMapDom: Map<HTMLElement, ReactCompositeComponent> = new Map();
 
 interface ReactCompositeComponent {
     updateComponent<T>(prevElement: T, nextElement: T, nextContext: any): void;
@@ -83,7 +83,7 @@ class ReactCompositeComponent {
         }
         // this.inst = new TagName(props);
         instMapCompositeComponent.set(this.inst, this);
-        this._container && instMapDom.set(this.inst, this._container);
+        this._container && instMapDom.set(this._container, this);
         this.inst.componentWillMount && this.inst.componentWillMount();
         this.mountChildComponent();
         this.inst.componentDidMount && this.inst.componentDidMount();
@@ -103,7 +103,14 @@ class ReactCompositeComponent {
     }
 
     mountChildComponent() {
-        this._renderComponent = ReactReconciler.initialComponent(this.inst.render(), this._container);
+        let renderElement;
+        let toRenderElement: ReactNode | ReactNode[] = this.inst.render();
+        if (Array.isArray(toRenderElement)) {
+            renderElement = toRenderElement[0];
+        } else {
+            renderElement = toRenderElement;
+        }
+        this._renderComponent = ReactReconciler.initialComponent(renderElement, this._container);
         const nextContext = this._processChildContext();
         this._renderComponent.mountComponent(nextContext, this._replaceNode, this._isInsert);
     }
@@ -199,7 +206,13 @@ class ReactCompositeComponent {
     _updateRenderComponent() {
         let prevComponentInstance = this._renderComponent;
         let prevRenderElement = prevComponentInstance._currentElement;
-        let nextRenderElement =  this.inst.render();
+        let nextRenderElement: ReactNode;
+        let toNextRenderElement: ReactNode | ReactNode[] =  this.inst.render();
+        if (Array.isArray(toNextRenderElement)) {
+            nextRenderElement = toNextRenderElement[0];
+        } else {
+            nextRenderElement = toNextRenderElement;
+        }
         const nextChildContext = this._processChildContext();
 
         if (ReactReconciler.shouldUpdateReactComponent(prevRenderElement, nextRenderElement)) {
@@ -227,7 +240,7 @@ class ReactCompositeComponent {
     unmountComponent() {
         let inst: ReactComponent = this.inst;
         inst.componentWillUnmount && inst.componentWillUnmount();
-        ReactReconciler.unmountComponent(this._renderComponent);
+        this._renderComponent && ReactReconciler.unmountComponent(this._renderComponent);
         this._ref && this._ref(null);
         delete this.inst;
         delete this._renderComponent;

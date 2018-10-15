@@ -55,7 +55,7 @@ const ReactReconciler = {
         internalInstance.unmountComponent();
     },
 
-    getHostNode(component: ReactRenderComponent) {
+    getHostNode(component: ReactRenderComponent): Node {
         if (component instanceof ReactDOMComponent) {
             return component._renderElement;
         }

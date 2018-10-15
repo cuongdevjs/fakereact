@@ -1,5 +1,7 @@
 import ReactElement from "./ReactElement"
-import ReactReconciler from "./ReactReconciler"
+import ReactReconciler, { ReactRenderComponent } from "./ReactReconciler"
+import ReactCompositeComponent, { instMapCompositeComponent, instMapDom } from "./ReactCompositeComponent"
+import ReactComponent from './ReactComponent';
 
 
 
@@ -19,8 +21,26 @@ export function render(ele: ReactElement<any> | string, container: HTMLElement |
    }
 }
 
+export function findDOMNode(component: ReactComponent) {
+    let renderComponent = instMapCompositeComponent.get(component);
+    if (renderComponent) {
+        return ReactReconciler.getHostNode(renderComponent);
+    }
+
+    return null;
+}
+
+export function unmountComponentAtNode(node: HTMLElement): void {
+    let component: ReactCompositeComponent | undefined = instMapDom.get(node);
+    if (component) {
+        component.unmountComponent();
+    }
+}
+
 const ReactDOM = {
     render,
+    findDOMNode,
+    unmountComponentAtNode
 }
 
 

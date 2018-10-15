@@ -7,6 +7,6 @@ declare const ReactReconciler: {
     receiveComponent(internalInstance: ReactRenderComponent, nextElement: ReactNode, nextContext?: any): void;
     shouldUpdateReactComponent(prevRenderElement: ReactNode, nextRenderElement: ReactNode): Boolean;
     unmountComponent(internalInstance: ReactRenderComponent): void;
-    getHostNode(component: ReactRenderComponent): any;
+    getHostNode(component: ReactRenderComponent): Node;
 };
 export default ReactReconciler;

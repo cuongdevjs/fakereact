@@ -1,6 +1,7 @@
 import ReactElement, { ReactNode, ReactDomElement } from "./ReactElement"
 import ReactReconciler, {ReactRenderComponent} from "./ReactReconciler"
 import { dfsWalk, ChangeType, IChange, IMove, MoveType } from "./DomDiff"
+import transformToCssKey from "./csskey"
 
 function isAttachEvent(key: string): Boolean {
     if (key.substring(0,2) === "on") {
@@ -117,7 +118,7 @@ class ReactDOMComponent {
                 if (ReactReconciler.shouldUpdateReactComponent(prevElement, child)) {
                     ReactReconciler.receiveComponent(prevInstance, child, this._context);
                 } else {
-                    prevInstance.unmountComponent();
+                    // prevInstance.unmountComponent();
                     let nextContainer: HTMLElement;
 
                     if (this._renderElement instanceof HTMLElement) {
@@ -128,6 +129,7 @@ class ReactDOMComponent {
                     this._renderChildComponent[index] = ReactReconciler.initialComponent(child, nextContainer);
                     const hostNode = ReactReconciler.getHostNode(prevInstance);
                     this._renderChildComponent[index].mountComponent({}, hostNode);
+                    prevInstance.unmountComponent();
                 }
             } else {
                 if (this._renderElement instanceof HTMLElement) {
@@ -203,9 +205,14 @@ class ReactDOMComponent {
                     container = this._container;
                 }
                 let renderComponent: ReactRenderComponent = ReactReconciler.initialComponent(move.item, container);
-                this._renderChildComponent.splice(move.index, 0, renderComponent);
-                const hostNode: Node = container.childNodes[move.index];
-                renderComponent.mountComponent(this._context, hostNode, true);
+                if (this._renderChildComponent) {
+                    this._renderChildComponent.splice(move.index, 0, renderComponent);
+                    const hostNode: Node = container.childNodes[move.index];
+                    renderComponent.mountComponent(this._context, hostNode, true);
+                } else {
+                    this._renderChildComponent = [renderComponent];
+                    renderComponent.mountComponent(this._context);
+                }
             }
         } else {
             this._renderChildComponent[move.index] && this._renderChildComponent[move.index].unmountComponent();
@@ -231,7 +238,7 @@ class ReactDOMComponent {
 
     updateProps(el:HTMLElement, props: any) {
         for (let key in props) {
-            if (props[key]) {
+            if (props[key] !== undefined) {
                 if (key === "className") {
                     el.setAttribute("class", props[key]);
                 } else if (isAttachEvent(key)) {
@@ -245,6 +252,15 @@ class ReactDOMComponent {
                             this.attachEvent(el, "onInput");
                         }
                     }
+                } else if (key === "style") {
+                    const style = props[key];
+                    const keys: Array<string> = Object.keys(style);
+                    let cssarr = keys.map((ele: string, index: number) => {
+                        const cssval = style[ele];
+                        const csskey = transformToCssKey(ele);
+                        return `${csskey}: ${cssval}`;
+                    });
+                    cssarr.length && el.setAttribute("style", cssarr.join(";"));
                 } else {
                     el.setAttribute(key, props[key]);
                 }

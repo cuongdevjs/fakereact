@@ -22,7 +22,9 @@ const Children: IChildrenType = {
         }
     },
     forEach(children, fn) {
-        return children.forEach(fn);
+        if (Array.isArray(children)) {
+            return children.forEach(fn);
+        }
     },
     map(children, fn) {
         return children.map(fn);

@@ -6,6 +6,8 @@ import { createStore, bindActionCreators } from "redux"
 import { Provider, connect } from "react-redux"
 import InputItem from "antd-mobile/es/input-item"
 import "antd-mobile/es/input-item/style/index.css"
+import toast from "antd-mobile/es/toast"
+import "antd-mobile/es/toast/style/index.css"
 
 interface Props {
     name: string;
@@ -448,6 +450,8 @@ class TestPpComponent extends React.Component<{}, PPState> {
     }
     
     changeName() {
+        toast.info("HAHA", 2);
+        /*
         
         this.setState((prevState: PPState) => {
             console.log(prevState);
@@ -457,6 +461,7 @@ class TestPpComponent extends React.Component<{}, PPState> {
                 person: p,
             }
         })
+        */
     }
 
     handleChange(e: any) {
@@ -470,7 +475,7 @@ class TestPpComponent extends React.Component<{}, PPState> {
     }
     render() {
         return (
-            <div>
+            <div style={{backgroundColor: "#f00"}}>
                 <h1 onClick={this.changeName}>{this.state.person.name}</h1>
                 <input value={this.state.person.name} onChange={this.handleChange}/>
             </div>

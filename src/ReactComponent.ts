@@ -25,6 +25,7 @@ class ReactComponent<P = {}, S = {}> {
     state: Readonly<S>;
     context: any;
     refs: any;
+    isReactComponent: any;
     static isReactComponent: boolean = true;
 
     constructor(props: Readonly<P>, context?: any) {
@@ -51,6 +52,8 @@ class ReactComponent<P = {}, S = {}> {
         }
     }
 }
+
+ReactComponent.prototype.isReactComponent = {};
 
 export class ReactPureComponent<P = {}, S = {}> extends ReactComponent<P, S> {
     static isReactPureComponent: boolean = true;

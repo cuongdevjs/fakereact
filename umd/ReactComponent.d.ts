@@ -20,6 +20,7 @@ declare class ReactComponent<P = {}, S = {}> {
     state: Readonly<S>;
     context: any;
     refs: any;
+    isReactComponent: any;
     static isReactComponent: boolean;
     constructor(props: Readonly<P>, context?: any);
     setState<T extends keyof S>(partState: (Pick<S, T> | S | null) | ((prevState?: Readonly<S>, props?: Readonly<P>) => Pick<S, T> | S | null), cb?: () => void): void;

@@ -351,6 +351,13 @@
         return currentPatch;
     }
 
+    function transformToCssKey(key) {
+        return key.replace(/[A-Z]/g, function (a, b) {
+            console.log(a, b);
+            return "-" + a.toLowerCase();
+        });
+    }
+
     function isAttachEvent(key) {
         if (key.substring(0, 2) === "on") {
             return true;
@@ -450,7 +457,7 @@
                         ReactReconciler.receiveComponent(prevInstance, child, _this._context);
                     }
                     else {
-                        prevInstance.unmountComponent();
+                        // prevInstance.unmountComponent();
                         var nextContainer = void 0;
                         if (_this._renderElement instanceof HTMLElement) {
                             nextContainer = _this._renderElement;
@@ -461,6 +468,7 @@
                         _this._renderChildComponent[index] = ReactReconciler.initialComponent(child, nextContainer);
                         var hostNode = ReactReconciler.getHostNode(prevInstance);
                         _this._renderChildComponent[index].mountComponent({}, hostNode);
+                        prevInstance.unmountComponent();
                     }
                 }
                 else {
@@ -528,9 +536,15 @@
                         container = this._container;
                     }
                     var renderComponent = ReactReconciler.initialComponent(move.item, container);
-                    this._renderChildComponent.splice(move.index, 0, renderComponent);
-                    var hostNode = container.childNodes[move.index];
-                    renderComponent.mountComponent(this._context, hostNode, true);
+                    if (this._renderChildComponent) {
+                        this._renderChildComponent.splice(move.index, 0, renderComponent);
+                        var hostNode = container.childNodes[move.index];
+                        renderComponent.mountComponent(this._context, hostNode, true);
+                    }
+                    else {
+                        this._renderChildComponent = [renderComponent];
+                        renderComponent.mountComponent(this._context);
+                    }
                 }
             }
             else {
@@ -554,27 +568,41 @@
             delete this._ref;
         };
         ReactDOMComponent.prototype.updateProps = function (el, props) {
-            for (var key in props) {
-                if (props[key]) {
+            var _loop_1 = function (key) {
+                if (props[key] !== undefined) {
                     if (key === "className") {
                         el.setAttribute("class", props[key]);
                     }
                     else if (isAttachEvent(key)) {
-                        this.attachEvent(el, key, props[key]);
+                        this_1.attachEvent(el, key, props[key]);
                     }
                     else if (key === "ref" || isPropsChildren(key)) ;
                     else if (key === "value") {
                         el.setAttribute(key, props[key]);
-                        if (this._currentElement instanceof ReactElement) {
-                            if (this._currentElement.tagName === "input") {
-                                this.attachEvent(el, "onInput");
+                        if (this_1._currentElement instanceof ReactElement) {
+                            if (this_1._currentElement.tagName === "input") {
+                                this_1.attachEvent(el, "onInput");
                             }
                         }
+                    }
+                    else if (key === "style") {
+                        var style_1 = props[key];
+                        var keys = Object.keys(style_1);
+                        var cssarr = keys.map(function (ele, index) {
+                            var cssval = style_1[ele];
+                            var csskey = transformToCssKey(ele);
+                            return csskey + ": " + cssval;
+                        });
+                        cssarr.length && el.setAttribute("style", cssarr.join(";"));
                     }
                     else {
                         el.setAttribute(key, props[key]);
                     }
                 }
+            };
+            var this_1 = this;
+            for (var key in props) {
+                _loop_1(key);
             }
         };
         ReactDOMComponent.prototype.attachEvent = function (el, key, val) {
@@ -782,7 +810,7 @@
             }
             // this.inst = new TagName(props);
             instMapCompositeComponent.set(this.inst, this);
-            this._container && instMapDom.set(this.inst, this._container);
+            this._container && instMapDom.set(this._container, this);
             this.inst.componentWillMount && this.inst.componentWillMount();
             this.mountChildComponent();
             this.inst.componentDidMount && this.inst.componentDidMount();
@@ -797,7 +825,15 @@
         ReactCompositeComponent.prototype.initialInst = function () {
         };
         ReactCompositeComponent.prototype.mountChildComponent = function () {
-            this._renderComponent = ReactReconciler.initialComponent(this.inst.render(), this._container);
+            var renderElement;
+            var toRenderElement = this.inst.render();
+            if (Array.isArray(toRenderElement)) {
+                renderElement = toRenderElement[0];
+            }
+            else {
+                renderElement = toRenderElement;
+            }
+            this._renderComponent = ReactReconciler.initialComponent(renderElement, this._container);
             var nextContext = this._processChildContext();
             this._renderComponent.mountComponent(nextContext, this._replaceNode, this._isInsert);
         };
@@ -871,7 +907,14 @@
         ReactCompositeComponent.prototype._updateRenderComponent = function () {
             var prevComponentInstance = this._renderComponent;
             var prevRenderElement = prevComponentInstance._currentElement;
-            var nextRenderElement = this.inst.render();
+            var nextRenderElement;
+            var toNextRenderElement = this.inst.render();
+            if (Array.isArray(toNextRenderElement)) {
+                nextRenderElement = toNextRenderElement[0];
+            }
+            else {
+                nextRenderElement = toNextRenderElement;
+            }
             var nextChildContext = this._processChildContext();
             if (ReactReconciler.shouldUpdateReactComponent(prevRenderElement, nextRenderElement)) {
                 ReactReconciler.receiveComponent(prevComponentInstance, nextRenderElement, nextChildContext);
@@ -896,7 +939,7 @@
         ReactCompositeComponent.prototype.unmountComponent = function () {
             var inst = this.inst;
             inst.componentWillUnmount && inst.componentWillUnmount();
-            ReactReconciler.unmountComponent(this._renderComponent);
+            this._renderComponent && ReactReconciler.unmountComponent(this._renderComponent);
             this._ref && this._ref(null);
             delete this.inst;
             delete this._renderComponent;
@@ -967,6 +1010,7 @@
         ReactComponent.isReactComponent = true;
         return ReactComponent;
     }());
+    ReactComponent.prototype.isReactComponent = {};
     var ReactPureComponent = /** @class */ (function (_super) {
         __extends(ReactPureComponent, _super);
         function ReactPureComponent(props, context) {
@@ -995,7 +1039,9 @@
             }
         },
         forEach: function (children, fn) {
-            return children.forEach(fn);
+            if (Array.isArray(children)) {
+                return children.forEach(fn);
+            }
         },
         map: function (children, fn) {
             return children.map(fn);

@@ -2,6 +2,7 @@ import ReactElement, { SFC } from "./ReactElement";
 import ReactComponent, { ComponentClass } from "./ReactComponent";
 import { ReactRenderComponent } from "./ReactReconciler";
 export declare let instMapCompositeComponent: Map<ReactComponent, ReactCompositeComponent>;
+export declare let instMapDom: Map<HTMLElement, ReactCompositeComponent>;
 interface ReactCompositeComponent {
     updateComponent<T>(prevElement: T, nextElement: T, nextContext: any): void;
 }
