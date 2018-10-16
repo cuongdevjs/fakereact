@@ -353,7 +353,6 @@
 
     function transformToCssKey(key) {
         return key.replace(/[A-Z]/g, function (a, b) {
-            console.log(a, b);
             return "-" + a.toLowerCase();
         });
     }
@@ -1085,12 +1084,27 @@
             throw error;
         }
     }
+    function findDOMNode(component) {
+        var renderComponent = instMapCompositeComponent.get(component);
+        if (renderComponent) {
+            return ReactReconciler.getHostNode(renderComponent);
+        }
+        return null;
+    }
+    function unmountComponentAtNode(node) {
+        var component = instMapDom.get(node);
+        if (component) {
+            component.unmountComponent();
+        }
+    }
 
     exports.render = render;
     exports.Component = Component;
     exports.PureComponent = PureComponent;
     exports.createElement = createElement;
     exports.Children = Children;
+    exports.unmountComponentAtNode = unmountComponentAtNode;
+    exports.findDOMNode = findDOMNode;
     exports.default = React;
 
     Object.defineProperty(exports, '__esModule', { value: true });
