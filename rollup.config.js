@@ -3,9 +3,9 @@ import resolve from "rollup-plugin-node-resolve"
 import commonjs from "rollup-plugin-commonjs"
 
 export default {
-    input: "./src/React.ts",
+    input: "./src/index.ts",
     output: {
-        file: "umd/react.js",
+        file: "umd/index.js",
         format: "umd",
         name: "React",
         exports: "named",

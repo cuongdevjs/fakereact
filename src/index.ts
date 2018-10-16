@@ -10,3 +10,7 @@ export {
     unmountComponentAtNode,
     findDOMNode
 }
+
+
+export default React
+
