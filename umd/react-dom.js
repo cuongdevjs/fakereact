@@ -1,37 +1,8 @@
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
     typeof define === 'function' && define.amd ? define(['exports'], factory) :
-    (factory((global.React = {})));
+    (factory((global.ReactDOM = {})));
 }(this, (function (exports) { 'use strict';
-
-    /*! *****************************************************************************
-    Copyright (c) Microsoft Corporation. All rights reserved.
-    Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-    this file except in compliance with the License. You may obtain a copy of the
-    License at http://www.apache.org/licenses/LICENSE-2.0
-
-    THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
-    WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-    MERCHANTABLITY OR NON-INFRINGEMENT.
-
-    See the Apache Version 2.0 License for specific language governing permissions
-    and limitations under the License.
-    ***************************************************************************** */
-    /* global Reflect, Promise */
-
-    var extendStatics = function(d, b) {
-        extendStatics = Object.setPrototypeOf ||
-            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-        return extendStatics(d, b);
-    };
-
-    function __extends(d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    }
 
     var ReactElement = /** @class */ (function () {
         function ReactElement(tagName, props) {
@@ -91,22 +62,120 @@
     function isReactElement(ele) {
         return typeof ele !== "string";
     }
-    function cloneElement(element, config) {
-        var children = [];
-        for (var _i = 2; _i < arguments.length; _i++) {
-            children[_i - 2] = arguments[_i];
-        }
-        var props = element.props;
-        var newConfig = Object.assign({}, props);
-        if (config.key) {
-            newConfig.key = config.key + '';
-        }
-        if (typeof config.ref === 'function') {
-            newConfig.ref = config.ref;
-        }
-        Object.assign(newConfig, config);
-        return new (ReactElement.bind.apply(ReactElement, [void 0, element.tagName, newConfig].concat(children)))();
+
+    /*! *****************************************************************************
+    Copyright (c) Microsoft Corporation. All rights reserved.
+    Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+    this file except in compliance with the License. You may obtain a copy of the
+    License at http://www.apache.org/licenses/LICENSE-2.0
+
+    THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
+    WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
+    MERCHANTABLITY OR NON-INFRINGEMENT.
+
+    See the Apache Version 2.0 License for specific language governing permissions
+    and limitations under the License.
+    ***************************************************************************** */
+    /* global Reflect, Promise */
+
+    var extendStatics = function(d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+
+    function __extends(d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     }
+
+    var ReactComponent = /** @class */ (function () {
+        function ReactComponent(props, context) {
+            this.props = props;
+            this.context = context;
+        }
+        ReactComponent.prototype.setState = function (partState, cb) {
+            var internalInstance = instMapCompositeComponent.get(this);
+            if (internalInstance) {
+                internalInstance._peddingState = internalInstance._peddingState || [];
+                internalInstance._peddingState.push(partState);
+                internalInstance.receiveComponent();
+                cb && cb();
+            }
+        };
+        ReactComponent.prototype.forceUpdate = function (cb) {
+            var internalInstance = instMapCompositeComponent.get(this);
+            if (internalInstance) {
+                internalInstance.receiveComponent();
+                cb && cb();
+            }
+        };
+        ReactComponent.isReactComponent = true;
+        return ReactComponent;
+    }());
+    ReactComponent.prototype.isReactComponent = {};
+    var ReactPureComponent = /** @class */ (function (_super) {
+        __extends(ReactPureComponent, _super);
+        function ReactPureComponent(props, context) {
+            return _super.call(this, props, context) || this;
+        }
+        ReactPureComponent.isReactPureComponent = true;
+        return ReactPureComponent;
+    }(ReactComponent));
+    function isReactComponentClass(tagName) {
+        return tagName.isReactComponent;
+    }
+    function isPureComponentClass(tagName) {
+        return tagName.isReactPureComponent;
+    }
+
+    function shallowEqual(objA, objB, compare, compareContext) {
+        var ret = compare ? compare.call(compareContext, objA, objB) : void 0;
+      
+        if (ret !== void 0) {
+          return !!ret;
+        }
+      
+        if (objA === objB) {
+          return true;
+        }
+      
+        if (typeof objA !== "object" || !objA || typeof objB !== "object" || !objB) {
+          return false;
+        }
+      
+        var keysA = Object.keys(objA);
+        var keysB = Object.keys(objB);
+      
+        if (keysA.length !== keysB.length) {
+          return false;
+        }
+      
+        var bHasOwnProperty = Object.prototype.hasOwnProperty.bind(objB);
+      
+        // Test for A's keys different from B.
+        for (var idx = 0; idx < keysA.length; idx++) {
+          var key = keysA[idx];
+      
+          if (!bHasOwnProperty(key)) {
+            return false;
+          }
+      
+          var valueA = objA[key];
+          var valueB = objB[key];
+      
+          ret = compare ? compare.call(compareContext, valueA, valueB, key) : void 0;
+      
+          if (ret === false || (ret === void 0 && valueA !== valueB)) {
+            return false;
+          }
+        }
+      
+        return true;
+      }
 
     /**
      * Diff two list in O(N).
@@ -654,108 +723,6 @@
         return ReactDOMComponent;
     }());
 
-    var ReactReconciler = {
-        initialComponent: function (element, container) {
-            var internalInst;
-            if (element instanceof ReactElement) {
-                if (typeof element.tagName === "string") {
-                    internalInst = new ReactDOMComponent(element, container);
-                }
-                else {
-                    internalInst = new ReactCompositeComponent(element, container);
-                }
-            }
-            else {
-                internalInst = new ReactDOMComponent(element, container);
-            }
-            return internalInst;
-        },
-        receiveComponent: function (internalInstance, nextElement, nextContext) {
-            if (nextElement instanceof ReactElement) {
-                if (typeof nextElement.tagName === "string" && internalInstance instanceof ReactDOMComponent) {
-                    internalInstance.receiveComponent(nextElement, nextContext);
-                }
-                else if (internalInstance instanceof ReactCompositeComponent) {
-                    internalInstance.receiveComponent(nextElement, nextContext);
-                }
-                else {
-                    throw new Error("element and component are not compatible");
-                }
-            }
-            else if (internalInstance instanceof ReactDOMComponent) {
-                internalInstance.receiveComponent(nextElement, nextContext);
-            }
-            else {
-                throw new Error("element and component are not compatible");
-            }
-        },
-        shouldUpdateReactComponent: function (prevRenderElement, nextRenderElement) {
-            if (typeof prevRenderElement === "string" || typeof prevRenderElement === "number") {
-                return typeof nextRenderElement === "string" || typeof prevRenderElement === "number";
-            }
-            else if (nextRenderElement instanceof ReactElement && prevRenderElement instanceof ReactElement) {
-                return prevRenderElement.tagName === nextRenderElement.tagName && prevRenderElement.key === nextRenderElement.key;
-            }
-            else {
-                return false;
-            }
-        },
-        unmountComponent: function (internalInstance) {
-            internalInstance.unmountComponent();
-        },
-        getHostNode: function (component) {
-            if (component instanceof ReactDOMComponent) {
-                return component._renderElement;
-            }
-            return this.getHostNode(component._renderComponent);
-        }
-    };
-
-    function shallowEqual(objA, objB, compare, compareContext) {
-        var ret = compare ? compare.call(compareContext, objA, objB) : void 0;
-      
-        if (ret !== void 0) {
-          return !!ret;
-        }
-      
-        if (objA === objB) {
-          return true;
-        }
-      
-        if (typeof objA !== "object" || !objA || typeof objB !== "object" || !objB) {
-          return false;
-        }
-      
-        var keysA = Object.keys(objA);
-        var keysB = Object.keys(objB);
-      
-        if (keysA.length !== keysB.length) {
-          return false;
-        }
-      
-        var bHasOwnProperty = Object.prototype.hasOwnProperty.bind(objB);
-      
-        // Test for A's keys different from B.
-        for (var idx = 0; idx < keysA.length; idx++) {
-          var key = keysA[idx];
-      
-          if (!bHasOwnProperty(key)) {
-            return false;
-          }
-      
-          var valueA = objA[key];
-          var valueB = objB[key];
-      
-          ret = compare ? compare.call(compareContext, valueA, valueB, key) : void 0;
-      
-          if (ret === false || (ret === void 0 && valueA !== valueB)) {
-            return false;
-          }
-        }
-      
-        return true;
-      }
-
     var instMapCompositeComponent = new Map();
     var instMapDom = new Map();
     var CompositeType;
@@ -985,88 +952,60 @@
         return ReactCompositeComponent;
     }());
 
-    var ReactComponent = /** @class */ (function () {
-        function ReactComponent(props, context) {
-            this.props = props;
-            this.context = context;
-        }
-        ReactComponent.prototype.setState = function (partState, cb) {
-            var internalInstance = instMapCompositeComponent.get(this);
-            if (internalInstance) {
-                internalInstance._peddingState = internalInstance._peddingState || [];
-                internalInstance._peddingState.push(partState);
-                internalInstance.receiveComponent();
-                cb && cb();
-            }
-        };
-        ReactComponent.prototype.forceUpdate = function (cb) {
-            var internalInstance = instMapCompositeComponent.get(this);
-            if (internalInstance) {
-                internalInstance.receiveComponent();
-                cb && cb();
-            }
-        };
-        ReactComponent.isReactComponent = true;
-        return ReactComponent;
-    }());
-    ReactComponent.prototype.isReactComponent = {};
-    var ReactPureComponent = /** @class */ (function (_super) {
-        __extends(ReactPureComponent, _super);
-        function ReactPureComponent(props, context) {
-            return _super.call(this, props, context) || this;
-        }
-        ReactPureComponent.isReactPureComponent = true;
-        return ReactPureComponent;
-    }(ReactComponent));
-    function isReactComponentClass(tagName) {
-        return tagName.isReactComponent;
-    }
-    function isPureComponentClass(tagName) {
-        return tagName.isReactPureComponent;
-    }
-
-    var Children = {
-        count: function (children) {
-            return children.length;
-        },
-        only: function (children) {
-            if (children.length === 1) {
-                return children[0];
+    var ReactReconciler = {
+        initialComponent: function (element, container) {
+            var internalInst;
+            if (element instanceof ReactElement) {
+                if (typeof element.tagName === "string") {
+                    internalInst = new ReactDOMComponent(element, container);
+                }
+                else {
+                    internalInst = new ReactCompositeComponent(element, container);
+                }
             }
             else {
-                throw new Error("Not the only child");
+                internalInst = new ReactDOMComponent(element, container);
+            }
+            return internalInst;
+        },
+        receiveComponent: function (internalInstance, nextElement, nextContext) {
+            if (nextElement instanceof ReactElement) {
+                if (typeof nextElement.tagName === "string" && internalInstance instanceof ReactDOMComponent) {
+                    internalInstance.receiveComponent(nextElement, nextContext);
+                }
+                else if (internalInstance instanceof ReactCompositeComponent) {
+                    internalInstance.receiveComponent(nextElement, nextContext);
+                }
+                else {
+                    throw new Error("element and component are not compatible");
+                }
+            }
+            else if (internalInstance instanceof ReactDOMComponent) {
+                internalInstance.receiveComponent(nextElement, nextContext);
+            }
+            else {
+                throw new Error("element and component are not compatible");
             }
         },
-        forEach: function (children, fn) {
-            if (Array.isArray(children)) {
-                return children.forEach(fn);
+        shouldUpdateReactComponent: function (prevRenderElement, nextRenderElement) {
+            if (typeof prevRenderElement === "string" || typeof prevRenderElement === "number") {
+                return typeof nextRenderElement === "string" || typeof prevRenderElement === "number";
+            }
+            else if (nextRenderElement instanceof ReactElement && prevRenderElement instanceof ReactElement) {
+                return prevRenderElement.tagName === nextRenderElement.tagName && prevRenderElement.key === nextRenderElement.key;
+            }
+            else {
+                return false;
             }
         },
-        map: function (children, fn) {
-            return children.map(fn);
+        unmountComponent: function (internalInstance) {
+            internalInstance.unmountComponent();
         },
-        toArray: function (children) {
-            return children;
-        }
-    };
-
-    var Component = ReactComponent;
-    var PureComponent = ReactPureComponent;
-    function createElement(tagName, props) {
-        var children = [];
-        for (var _i = 2; _i < arguments.length; _i++) {
-            children[_i - 2] = arguments[_i];
-        }
-        return new (ReactElement.bind.apply(ReactElement, [void 0, tagName, props].concat(children)))();
-    }
-    var React = {
-        createElement: createElement,
-        Component: ReactComponent,
-        PureComponent: ReactPureComponent,
-        Children: Children,
-        cloneElement: cloneElement,
-        isValidElement: function (child) {
-            return child instanceof ReactElement;
+        getHostNode: function (component) {
+            if (component instanceof ReactDOMComponent) {
+                return component._renderElement;
+            }
+            return this.getHostNode(component._renderComponent);
         }
     };
 
@@ -1097,15 +1036,16 @@
             component.unmountComponent();
         }
     }
+    var ReactDOM = {
+        render: render,
+        findDOMNode: findDOMNode,
+        unmountComponentAtNode: unmountComponentAtNode
+    };
 
     exports.render = render;
-    exports.Component = Component;
-    exports.PureComponent = PureComponent;
-    exports.createElement = createElement;
-    exports.Children = Children;
-    exports.unmountComponentAtNode = unmountComponentAtNode;
     exports.findDOMNode = findDOMNode;
-    exports.default = React;
+    exports.unmountComponentAtNode = unmountComponentAtNode;
+    exports.default = ReactDOM;
 
     Object.defineProperty(exports, '__esModule', { value: true });
 

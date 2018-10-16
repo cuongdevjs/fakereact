@@ -3,11 +3,11 @@ import resolve from "rollup-plugin-node-resolve"
 import commonjs from "rollup-plugin-commonjs"
 
 export default {
-    input: "./src/React.ts",
+    input: "./src/ReactDOM.ts",
     output: {
-        file: "umd/react.js",
+        file: "umd/react-dom.js",
         format: "umd",
-        name: "React",
+        name: "ReactDOM",
         exports: "named",
     },
     plugins: [typescript(), resolve(), commonjs()]

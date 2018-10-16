@@ -1,5 +1,5 @@
 import React, {Component, PureComponent,createElement, Children} from "./React"
-import {render, findDOMNode, unmountComponentAtNode } from "./ReactDOM"
+import ReactDOM, {render, findDOMNode, unmountComponentAtNode } from "./ReactDOM"
 
 export {
     render, 
@@ -10,4 +10,3 @@ export {
     unmountComponentAtNode,
     findDOMNode
 }
-export default React;
