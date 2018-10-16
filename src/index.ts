@@ -1,6 +1,5 @@
 import React, {Component, PureComponent,createElement, Children} from "./React"
 import ReactDOM, {render, findDOMNode, unmountComponentAtNode } from "./ReactDOM"
-
 export {
     render, 
     Component, 
@@ -11,6 +10,11 @@ export {
     findDOMNode
 }
 
+// const ss = {
+//     a: 10,
+//     b: 11
+// }
 
-export default React
+
+// export default ss
 
