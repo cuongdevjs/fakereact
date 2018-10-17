@@ -10,11 +10,5 @@ export {
     findDOMNode
 }
 
-// const ss = {
-//     a: 10,
-//     b: 11
-// }
-
-
-// export default ss
+export default React
 

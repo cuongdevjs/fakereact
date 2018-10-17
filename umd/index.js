@@ -91,6 +91,22 @@
     function isReactElement(ele) {
         return typeof ele !== "string";
     }
+    function cloneElement(element, config) {
+        var children = [];
+        for (var _i = 2; _i < arguments.length; _i++) {
+            children[_i - 2] = arguments[_i];
+        }
+        var props = element.props;
+        var newConfig = Object.assign({}, props);
+        if (config.key) {
+            newConfig.key = config.key + '';
+        }
+        if (typeof config.ref === 'function') {
+            newConfig.ref = config.ref;
+        }
+        Object.assign(newConfig, config);
+        return new (ReactElement.bind.apply(ReactElement, [void 0, element.tagName, newConfig].concat(children)))();
+    }
 
     /**
      * Diff two list in O(N).
@@ -1043,6 +1059,16 @@
         }
         return new (ReactElement.bind.apply(ReactElement, [void 0, tagName, props].concat(children)))();
     }
+    var React = {
+        createElement: createElement,
+        Component: ReactComponent,
+        PureComponent: ReactPureComponent,
+        Children: Children,
+        cloneElement: cloneElement,
+        isValidElement: function (child) {
+            return child instanceof ReactElement;
+        }
+    };
 
     /*
     组件渲染核心流程
@@ -1072,12 +1098,6 @@
         }
     }
 
-    // const ss = {
-    //     a: 10,
-    //     b: 11
-    // }
-    // export default ss
-
     exports.render = render;
     exports.Component = Component;
     exports.PureComponent = PureComponent;
@@ -1085,6 +1105,7 @@
     exports.Children = Children;
     exports.unmountComponentAtNode = unmountComponentAtNode;
     exports.findDOMNode = findDOMNode;
+    exports.default = React;
 
     Object.defineProperty(exports, '__esModule', { value: true });
 
