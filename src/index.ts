@@ -10,5 +10,5 @@ export {
     findDOMNode
 }
 
-export default React
+export default React;
 

@@ -7,7 +7,7 @@ export type ReactRenderComponent = ReactDOMComponent | ReactCompositeComponent;
 
 const ReactReconciler = {
 
-    initialComponent(element: ReactNode, container: HTMLElement): ReactRenderComponent {
+    initialComponent(element: ReactNode, container: Element): ReactRenderComponent {
         let internalInst: ReactRenderComponent;
         if (element instanceof ReactElement) {
             if (typeof element.tagName === "string") {
@@ -40,7 +40,7 @@ const ReactReconciler = {
 
     shouldUpdateReactComponent(
         prevRenderElement: ReactNode,
-        nextRenderElement: ReactNode): Boolean
+        nextRenderElement: ReactNode): boolean
     {
         if (typeof prevRenderElement === "string" || typeof prevRenderElement === "number") {
             return typeof nextRenderElement === "string" || typeof prevRenderElement === "number";

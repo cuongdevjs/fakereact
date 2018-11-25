@@ -16,14 +16,15 @@ function isPropsChildren(key: string): Boolean {
 
 class ReactDOMComponent {
     _currentElement: ReactDomElement;
-    _container: HTMLElement;
+    _container: Element;
     _renderElement: Node;
     _renderChildComponent: ReactRenderComponent[];
     _eventListener: Map<string, (evt: Event) => void>;
     _ref: (e: Node | null) => void;
     _context: any;
+    private svgNamespaceURI = "http://www.w3.org/2000/svg"; 
 
-    constructor(ele: ReactDomElement, container: HTMLElement) {
+    constructor(ele: ReactDomElement, container: Element) {
         this._currentElement = ele;
         this._container = container;
     }
@@ -34,7 +35,11 @@ class ReactDOMComponent {
         if (this._currentElement instanceof ReactElement) {
             let props: any = this._currentElement.props;
             let tagName: string = this._currentElement.tagName;
-            let el: HTMLElement = document.createElement(tagName);
+            let namespaceURI = this._container.namespaceURI;
+            if (tagName === "svg") {
+                namespaceURI = this.svgNamespaceURI;
+            }
+            let el: Element = document.createElementNS(namespaceURI, tagName);
             this.updateProps(el, props);
 
             this._renderElement = el;
@@ -74,18 +79,14 @@ class ReactDOMComponent {
         }
     }
 
-    mountChildComponent(children: ReactNode[], container: HTMLElement) {
+    mountChildComponent(children: ReactNode[], container: Element) {
         children.forEach((child: ReactNode, index: number) => {
-            if(Array.isArray(child)) {
-                this.mountChildComponent(child, container);
-            } else {
-                let renderComponent: ReactRenderComponent = ReactReconciler.initialComponent(child, container);
-                if (!this._renderChildComponent) {
-                    this._renderChildComponent = [];
-                }
-                this._renderChildComponent.push(renderComponent);
-                renderComponent.mountComponent(this._context);
+            let renderComponent: ReactRenderComponent = ReactReconciler.initialComponent(child, container);
+            if (!this._renderChildComponent) {
+                this._renderChildComponent = [];
             }
+            this._renderChildComponent.push(renderComponent);
+            renderComponent.mountComponent(this._context);
         });
     }
 
@@ -109,17 +110,14 @@ class ReactDOMComponent {
     updateChildComponent(children: ReactNode[]) {
         let currentIndex:number = 0;
         children.forEach((child: ReactNode, index: number) => {
-            if (Array.isArray(child)) {
-                this.updateChildComponent(child);
-                index = index + child.length;
-            } else if (this._renderChildComponent && this._renderChildComponent[index]) {
+            if (this._renderChildComponent && this._renderChildComponent[index]) {
                 let prevInstance: ReactRenderComponent = this._renderChildComponent[index];
                 let prevElement: ReactNode = prevInstance._currentElement;
                 if (ReactReconciler.shouldUpdateReactComponent(prevElement, child)) {
                     ReactReconciler.receiveComponent(prevInstance, child, this._context);
                 } else {
                     // prevInstance.unmountComponent();
-                    let nextContainer: HTMLElement;
+                    let nextContainer: Element;
 
                     if (this._renderElement instanceof HTMLElement) {
                         nextContainer = this._renderElement;
@@ -197,8 +195,8 @@ class ReactDOMComponent {
 
     reorderNode(move: IMove) {
         if (move.type === MoveType.INSERT) {
-            if (move.item) {
-                let container: HTMLElement;
+            if (move.item !== undefined) {
+                let container: Element;
                 if (this._renderElement instanceof HTMLElement) {
                     container = this._renderElement;
                 } else {
@@ -216,6 +214,7 @@ class ReactDOMComponent {
             }
         } else {
             this._renderChildComponent[move.index] && this._renderChildComponent[move.index].unmountComponent();
+            this._renderChildComponent.splice(move.index, 1);
             let removeNode: Node = this._renderElement.childNodes[move.index];
             this._renderElement.removeChild(removeNode);
         }
@@ -236,19 +235,21 @@ class ReactDOMComponent {
         delete this._ref;
     }
 
-    updateProps(el:HTMLElement, props: any) {
+    updateProps(el:Element, props: any) {
         for (let key in props) {
             if (props[key] !== undefined) {
                 if (key === "className") {
                     el.setAttribute("class", props[key]);
                 } else if (isAttachEvent(key)) {
-                    this.attachEvent(el, key, props[key]);
+                    if (el instanceof HTMLElement || el instanceof SVGElement) {
+                        this.attachEvent(el, key, props[key]);
+                    }
                 } else if (key === "ref" || isPropsChildren(key)) {
                     
                 } else if (key === "value") {
-                    el.setAttribute(key, props[key]);
                     if (this._currentElement instanceof ReactElement) {
-                        if (this._currentElement.tagName === "input") {
+                        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+                            el.value = props[key];
                             this.attachEvent(el, "onInput");
                         }
                     }
@@ -261,19 +262,22 @@ class ReactDOMComponent {
                         return `${csskey}: ${cssval}`;
                     });
                     cssarr.length && el.setAttribute("style", cssarr.join(";"));
-                } else {
+                } else if (key === "xlinkHref") {
+                    el.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", props[key]);
+                }
+                else {
                     el.setAttribute(key, props[key]);
                 }
             }
         }
     }
 
-    attachEvent<T>(el: HTMLElement, key: string, val?: Function) {
+    attachEvent<T>(el: SVGElement | HTMLElement, key: string, val?: Function) {
         let eventName: string = key.substring(2).toLowerCase();
         let eventHandle: (e: Event) => void;
         const that = this;
 
-        if (el instanceof HTMLInputElement && (eventName === "input" || eventName === "change")) {
+        if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) && (eventName === "input" || eventName === "change")) {
             eventName = "input";
             eventHandle = function(e: Event): void {
                 let value: any;
@@ -289,7 +293,7 @@ class ReactDOMComponent {
                     break;
 
                     case "checkbox":
-                        el.checked = value;
+                        // el.checked = value;
                     break;
 
                     default: 

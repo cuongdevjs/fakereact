@@ -12,7 +12,7 @@ interface ReactComponent<P = {}, S = {}> extends ComponentLifecycle<P, S> {
     render(): ReactNode;
     getChildContext?(): any;
 }
-interface IPropsExtend {
+export interface IPropsExtend {
     children?: ReactNode[] | ReactNode;
 }
 declare class ReactComponent<P = {}, S = {}> {

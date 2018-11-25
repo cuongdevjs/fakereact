@@ -1,4 +1,3 @@
-// var diff = require("list-diff2");
 import ReactElement, { ReactNode, ReactDomElement, isReactElement } from "./ReactElement"
 import diff from "./lib/listDiff"
 

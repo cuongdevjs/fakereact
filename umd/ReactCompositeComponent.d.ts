@@ -2,7 +2,7 @@ import ReactElement, { SFC } from "./ReactElement";
 import ReactComponent, { ComponentClass } from "./ReactComponent";
 import { ReactRenderComponent } from "./ReactReconciler";
 export declare let instMapCompositeComponent: Map<ReactComponent, ReactCompositeComponent>;
-export declare let instMapDom: Map<HTMLElement, ReactCompositeComponent>;
+export declare let instMapDom: Map<Element, ReactCompositeComponent>;
 interface ReactCompositeComponent {
     updateComponent<T>(prevElement: T, nextElement: T, nextContext: any): void;
 }
@@ -15,14 +15,14 @@ declare class ReactCompositeComponent {
     _currentElement: ReactElement<ComponentClass> | ReactElement<SFC>;
     _renderComponent: ReactRenderComponent;
     inst: ReactComponent;
-    _container: HTMLElement;
+    _container: Element;
     _peddingState: any[];
     _replaceNode: Node;
     _isInsert: boolean;
     _compositeType: CompositeType;
     _ref: (e: ReactComponent | null) => void;
     _context: any;
-    constructor(node: ReactElement<ComponentClass>, container: HTMLElement);
+    constructor(node: ReactElement<ComponentClass>, container: Element);
     mountComponent(context?: any, replaceNode?: Node, isInsert?: boolean): void;
     isComponentClass(tagName: ComponentClass | SFC): tagName is ComponentClass;
     initialInst(): void;

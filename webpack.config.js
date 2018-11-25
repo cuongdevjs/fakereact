@@ -40,9 +40,11 @@ module.exports = {
     resolve: {
         // 引入文件可以省略后缀
         extensions: ['.ts', '.tsx', '.js', '.jsx', '.web.js', '.json'],
+        /*
         alias: {
             "react": path.resolve(__dirname, 'src/React.ts'),
             "react-dom": path.resolve(__dirname, 'src/ReactDOM.ts')
         }
+        */
     }
 }

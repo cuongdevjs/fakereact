@@ -5,7 +5,7 @@ import shallowequal from "./lib/shallowequal"
 import ReactDOMComponent from './ReactDOMComponent';
 
 export let instMapCompositeComponent: Map<ReactComponent, ReactCompositeComponent> = new Map();
-export let instMapDom: Map<HTMLElement, ReactCompositeComponent> = new Map();
+export let instMapDom: Map<Element, ReactCompositeComponent> = new Map();
 
 interface ReactCompositeComponent {
     updateComponent<T>(prevElement: T, nextElement: T, nextContext: any): void;
@@ -17,7 +17,7 @@ enum CompositeType {
     PureComponent
 };
 
-function transformStateLessToComponent(props: any, context: any): ReactComponent {
+function transformStateLessToComponent(props: any, context?: any): ReactComponent {
     let component = new ReactComponent(props, context);
     component.render = function() {
         let internalInst = instMapCompositeComponent.get(this);
@@ -27,7 +27,7 @@ function transformStateLessToComponent(props: any, context: any): ReactComponent
                 return fn(this.props);
             }
         }
-        return null;
+        return "";
     }
     return component;
 }
@@ -46,7 +46,7 @@ class ReactCompositeComponent {
     _currentElement: ReactElement<ComponentClass> | ReactElement<SFC>;
     _renderComponent: ReactRenderComponent;
     inst: ReactComponent;
-    _container: HTMLElement;
+    _container: Element;
     _peddingState: any[];
     _replaceNode: Node;
     _isInsert: boolean;
@@ -54,7 +54,7 @@ class ReactCompositeComponent {
     _ref: (e: ReactComponent | null) => void;
     _context: any;
 
-    constructor(node: ReactElement<ComponentClass>, container: HTMLElement) {
+    constructor(node: ReactElement<ComponentClass>, container: Element) {
         this._currentElement = node;
         this._container = container;
     }
@@ -118,11 +118,8 @@ class ReactCompositeComponent {
     updateComponent(prevElement: ReactElement<ComponentClass>, nextElement: ReactElement<ComponentClass>, nextContext: any) {
         let nextProps: any = nextElement.props;
         let prevProps: any = prevElement.props;
-        let nextState: any = this._processNewState(prevProps);
         let shouldUpdate: boolean = true;
-        let isRealUpdate: boolean = !shallowequal(nextProps, prevProps) || !shallowequal(this.inst.state || null, nextState);
         let willReceive: boolean = false;
-        // nextContext = this._processContext(nextContext);
         
         if (nextContext !== this._context) {
             nextContext = this._processContext(nextContext);
@@ -133,11 +130,12 @@ class ReactCompositeComponent {
             willReceive = true;
         }
 
-
-
         if (this.inst.componentWillReceiveProps && willReceive) {
             this.inst.componentWillReceiveProps(nextProps, nextContext);
         }
+
+        let nextState: any = this._processNewState(prevProps);
+        let isRealUpdate: boolean = !shallowequal(nextProps, prevProps) || !shallowequal(this.inst.state || null, nextState);
 
         if (this.inst.shouldComponentUpdate) {
             shouldUpdate = this.inst.shouldComponentUpdate(nextProps, nextState, nextContext);
@@ -164,12 +162,13 @@ class ReactCompositeComponent {
 
     _processNewState(prevProps?: any): any {
         let state = this.inst.state || null;
+        let nextState: any = {};
         if (this._peddingState && this._peddingState.length > 0) {
             this._peddingState.forEach((changeState, index: number) => {
-                Object.assign(state, typeof changeState === "function" ? changeState(state, prevProps) : changeState);
+                Object.assign(nextState, state, typeof changeState === "function" ? changeState(state, prevProps) : changeState);
             })
             this._peddingState = [];
-            return state;
+            return nextState;
         }
         return state;
     }
@@ -193,6 +192,7 @@ class ReactCompositeComponent {
         }
 
         inst.componentWillUpdate && inst.componentWillUpdate(nextProps, nextState, nextContext);
+        this._currentElement = nextElement; 
         // 更新数据
         inst.props = nextProps;
         inst.state = nextState;
@@ -218,7 +218,7 @@ class ReactCompositeComponent {
         if (ReactReconciler.shouldUpdateReactComponent(prevRenderElement, nextRenderElement)) {
             ReactReconciler.receiveComponent(prevComponentInstance, nextRenderElement, nextChildContext);
         } else {
-            let container: HTMLElement = this._container;
+            let container: Element = this._container;
             const hostNode: Node = ReactReconciler.getHostNode(this._renderComponent);
             this._renderComponent.unmountComponent();
             this._renderComponent = ReactReconciler.initialComponent(nextRenderElement, container);
@@ -252,7 +252,6 @@ class ReactCompositeComponent {
 
     // context
     _processContext(context: any): any {
-        // handle context from parent
         const Component = this._currentElement.tagName;
         const contextType = Component.contextTypes;
         let _currentContext: {[key: string]: any} = {};
@@ -261,7 +260,6 @@ class ReactCompositeComponent {
                 _currentContext[key] = context[key];
             }
         }
-        // this._context = _currentContext;
         return _currentContext;
     }
 

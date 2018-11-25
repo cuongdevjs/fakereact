@@ -58,7 +58,7 @@
                     }
                 }
             }
-            // Object.assign(this.props, props);
+            arrChildren = arrChildren.filter(function (item) { return !!item || item === 0; });
             this.children = arrChildren;
             if (arrChildren.length > 0) {
                 Object.assign(this.props, {
@@ -74,11 +74,9 @@
             if (allProps) {
                 if (allProps.key) {
                     this.key = allProps.key + "";
-                    // delete allProps.key;
                 }
                 if (typeof allProps.ref === "function") {
                     this.ref = allProps.ref;
-                    // delete allProps.ref;
                 }
             }
             Object.assign(this.props, allProps);
@@ -252,7 +250,6 @@
           : key(item)
       }
 
-    // var diff = require("list-diff2");
     var ChangeType;
     (function (ChangeType) {
         ChangeType[ChangeType["REPLACE"] = 0] = "REPLACE";
@@ -376,7 +373,11 @@
             if (this._currentElement instanceof ReactElement) {
                 var props = this._currentElement.props;
                 var tagName = this._currentElement.tagName;
-                var el = document.createElement(tagName);
+                var namespaceURI = this._container.namespaceURI;
+                if (tagName === "svg") {
+                    namespaceURI = "http://www.w3.org/2000/svg";
+                }
+                var el = document.createElementNS(namespaceURI, tagName);
                 this.updateProps(el, props);
                 this._renderElement = el;
                 this.mountIntoDom(replaceElement, isInsert);
@@ -417,17 +418,12 @@
         ReactDOMComponent.prototype.mountChildComponent = function (children, container) {
             var _this = this;
             children.forEach(function (child, index) {
-                if (Array.isArray(child)) {
-                    _this.mountChildComponent(child, container);
+                var renderComponent = ReactReconciler.initialComponent(child, container);
+                if (!_this._renderChildComponent) {
+                    _this._renderChildComponent = [];
                 }
-                else {
-                    var renderComponent = ReactReconciler.initialComponent(child, container);
-                    if (!_this._renderChildComponent) {
-                        _this._renderChildComponent = [];
-                    }
-                    _this._renderChildComponent.push(renderComponent);
-                    renderComponent.mountComponent(_this._context);
-                }
+                _this._renderChildComponent.push(renderComponent);
+                renderComponent.mountComponent(_this._context);
             });
         };
         ReactDOMComponent.prototype.receiveComponent = function (nextElement, nextContext) {
@@ -445,11 +441,7 @@
         ReactDOMComponent.prototype.updateChildComponent = function (children) {
             var _this = this;
             children.forEach(function (child, index) {
-                if (Array.isArray(child)) {
-                    _this.updateChildComponent(child);
-                    index = index + child.length;
-                }
-                else if (_this._renderChildComponent && _this._renderChildComponent[index]) {
+                if (_this._renderChildComponent && _this._renderChildComponent[index]) {
                     var prevInstance = _this._renderChildComponent[index];
                     var prevElement = prevInstance._currentElement;
                     if (ReactReconciler.shouldUpdateReactComponent(prevElement, child)) {
@@ -526,7 +518,7 @@
         };
         ReactDOMComponent.prototype.reorderNode = function (move) {
             if (move.type === MoveType.INSERT) {
-                if (move.item) {
+                if (move.item !== undefined) {
                     var container = void 0;
                     if (this._renderElement instanceof HTMLElement) {
                         container = this._renderElement;
@@ -548,6 +540,7 @@
             }
             else {
                 this._renderChildComponent[move.index] && this._renderChildComponent[move.index].unmountComponent();
+                this._renderChildComponent.splice(move.index, 1);
                 var removeNode = this._renderElement.childNodes[move.index];
                 this._renderElement.removeChild(removeNode);
             }
@@ -573,14 +566,18 @@
                         el.setAttribute("class", props[key]);
                     }
                     else if (isAttachEvent(key)) {
-                        this_1.attachEvent(el, key, props[key]);
+                        if (el instanceof HTMLElement) {
+                            this_1.attachEvent(el, key, props[key]);
+                        }
                     }
                     else if (key === "ref" || isPropsChildren(key)) ;
                     else if (key === "value") {
                         el.setAttribute(key, props[key]);
                         if (this_1._currentElement instanceof ReactElement) {
                             if (this_1._currentElement.tagName === "input") {
-                                this_1.attachEvent(el, "onInput");
+                                if (el instanceof HTMLElement) {
+                                    this_1.attachEvent(el, "onInput");
+                                }
                             }
                         }
                     }
@@ -593,6 +590,9 @@
                             return csskey + ": " + cssval;
                         });
                         cssarr.length && el.setAttribute("style", cssarr.join(";"));
+                    }
+                    else if (key === "xlinkHref") {
+                        el.setAttribute("href", props[key]);
                     }
                     else {
                         el.setAttribute(key, props[key]);
@@ -774,7 +774,7 @@
                     return fn(this.props);
                 }
             }
-            return null;
+            return "";
         };
         return component;
     }
@@ -949,7 +949,6 @@
         };
         // context
         ReactCompositeComponent.prototype._processContext = function (context) {
-            // handle context from parent
             var Component = this._currentElement.tagName;
             var contextType = Component.contextTypes;
             var _currentContext = {};
@@ -958,7 +957,6 @@
                     _currentContext[key] = context[key];
                 }
             }
-            // this._context = _currentContext;
             return _currentContext;
         };
         ReactCompositeComponent.prototype._processChildContext = function () {

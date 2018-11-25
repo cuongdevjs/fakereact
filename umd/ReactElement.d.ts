@@ -1,12 +1,13 @@
-import ReactComponent, { ComponentClass, IContextType } from "./ReactComponent";
+import ReactComponent, { ComponentClass, IContextType, IPropsExtend } from "./ReactComponent";
 export declare type ReactNode = ValidReactNode | null;
 export declare type childrenType = Array<ReactNode>;
 export declare type ValidReactNode = string | ReactElement<any> | number;
 export declare type ReactDomElement = ReactElement<string> | string | number | null;
 export declare type ReactCompositeElement = ReactElement<ComponentClass> | ReactElement<SFC>;
 export interface SFC<P = {}> {
-    (props?: P, context?: any): ReactNode;
+    (props?: P & IPropsExtend, context?: any): ReactElement<any> | null;
     contextTypes?: IContextType;
+    defaultProps?: P;
 }
 export declare type tagType = string | ComponentClass | SFC;
 declare class ReactElement<T extends tagType> {

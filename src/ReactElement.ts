@@ -1,4 +1,4 @@
-import ReactComponent, {ComponentClass, IContextType} from "./ReactComponent"
+import ReactComponent, {ComponentClass, IContextType, IPropsExtend} from "./ReactComponent"
 
 export type ReactNode = ValidReactNode | null;
 export type childrenType = Array<ReactNode>;
@@ -6,8 +6,9 @@ export type ValidReactNode = string | ReactElement<any> | number;
 export type ReactDomElement = ReactElement<string> | string | number | null;
 export type ReactCompositeElement = ReactElement<ComponentClass> | ReactElement<SFC>;
 export interface SFC<P = {}> {
-    (props?: P, context?: any):ReactNode;
+    (props?: P & IPropsExtend, context?: any):ReactElement<any> | null;
     contextTypes?: IContextType;
+    defaultProps?: P;
 }
 
 export type tagType = string | ComponentClass | SFC;
@@ -42,15 +43,16 @@ class ReactElement<T extends tagType> {
                 }
 
                 if (Array.isArray(child)) {
-                    arrChildren = arrChildren.concat(child);
+                    arrChildren = [...arrChildren, ...child];
                 } else {
                     arrChildren.push(child);
                 }
             }
         }
 
-        // Object.assign(this.props, props);
 
+
+        arrChildren = arrChildren.filter(item => !!item || item === 0);
         this.children = arrChildren;
         if (arrChildren.length > 0) {
             Object.assign(this.props, {
@@ -72,11 +74,9 @@ class ReactElement<T extends tagType> {
         if (allProps) {
             if (allProps.key) {
                 this.key = allProps.key + "";
-                // delete allProps.key;
             }
             if (typeof allProps.ref === "function") {
                 this.ref = allProps.ref;
-                // delete allProps.ref;
             }
         }
 
